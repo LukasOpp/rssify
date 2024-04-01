@@ -1,0 +1,10 @@
+extends layout
+
+block variables
+  - const title = 'home'
+
+block layout-content
+    div.feed-previews
+        for feed in feeds 
+            include ./partials/feed-preview
+        include ./partials/add-new-feed

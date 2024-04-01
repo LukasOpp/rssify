@@ -1,0 +1,13 @@
+extends layout
+
+block variables
+  - const title = feed.title
+
+block layout-content
+    a.back-to-all-feeds-link(href='/') &#8592; Back to all feeds
+    h2.feed-title #{feed.title}
+    form.delete-feed(action=`/api/v1/feed/${feed.id}`, method='post')
+        input(type="text", name="delete", hidden, value="delete")
+        input.delete-feed__button(type='submit', value='')
+    if feed.description
+        p #{feed.description}

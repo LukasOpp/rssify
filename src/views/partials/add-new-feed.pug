@@ -1,0 +1,5 @@
+article.add-new-feed-button
+    p Add new feed
+    form(action="/api/v1/feed", method="post" enctype="application/json")
+        input(type="text", name="title", placeholder="Title")
+        input(type="submit", value="Create Feed")

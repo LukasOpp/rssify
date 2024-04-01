@@ -1,0 +1,14 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "server": "5.75.242.145",
+            "port": 5433,
+            "askForPassword": true,
+            "driver": "PostgreSQL",
+            "name": "rssify",
+            "database": "postgres",
+            "username": "postgres"
+        }
+    ]
+}
