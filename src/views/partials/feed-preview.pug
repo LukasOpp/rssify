@@ -1,0 +1,7 @@
+article.feed-preview
+    h2.feed-preview__title=feed.title
+    if feed.description
+        p.feed-preview__description=feed.description
+    p.feed-preview__links=feed.links
+    small View Feed
+    a.link(href=`/feed/${feed.id}`)
