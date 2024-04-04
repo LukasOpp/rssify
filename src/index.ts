@@ -466,18 +466,17 @@ app.get(
             <script>
                 document.addEventListener("DOMContentLoaded", () => {
                     document.body.addEventListener("click", (event) => {
+                        event.preventDefault();
+
                         const path = event.composedPath();
                         const target = path[0];
-                        if (target.tagName === "A") {
-                            event.preventDefault();
-                        }
 
                         const pathSelector = path.reverse().map((element, i) => {
                             if (element.id && i === path.length - 1) {
-                                return "#" + element.id;
+                                return element.tagName + "#" + element.id;
                             }
                             if (element.className) {
-                                return "." + element.className.split(" ").join(".");
+                                return element.tagName + "." + element.className.split(" ").join(".");
                             }
                             if (element.tagName && element.tagName !== "HTML" && element.tagName !== "HEAD" && element.tagName !== "BODY") {
                                 return element.tagName.toLowerCase();
@@ -501,6 +500,7 @@ app.get(
                 throw new Error("No HTML found for website");
             }
 
+            // Inject the wizard code into the HTML
             website.latest_html = website.latest_html?.replace("</head>", `${wizardCodeInject}</head>`);
 
             res.render("website-wizard", { website, feed });
@@ -538,8 +538,15 @@ app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Resp
         const $ = cheerio.load(website.latest_html);
         const posts: Post[] = await getPostDataForSelectors($, selectors, website.url);
 
-        console.log(selectors);
-        console.log(posts);
+        posts.forEach((post) => {
+            if (post.date) {
+                post.date = preferredDateFormatting.format(
+                    new Date(post.date)
+                );
+            }
+        });
+
+        console.log(posts)
 
         res.render("partials/posts/website-post-list", { website, posts });
     } catch (error) {

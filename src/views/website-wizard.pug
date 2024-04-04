@@ -65,7 +65,6 @@ block layout-content
 
                 // Get the selected element path
                 const postContainerElementPath = document.getElementById("post_selector").value;
-                let selectedElement = selectedElementPath.split(' ').pop();
                 
                 // Check if the selected element is inside the post container
                 if (postContainerElementPath && !selectedElementPath.includes(postContainerElementPath)) {
@@ -78,14 +77,29 @@ block layout-content
 
                 // If the selected element is not inside the post container
                 } else {
-                    // Set the value of the input field
-                    const currentSelector = document.querySelectorAll(".posts input")[currentStep];
-                    if (currentSelector.id === "url_selector" && selectedElement.includes("a")) {
-                        selectedElement = selectedElement + "[href]";
+                    let selectedElement = selectedElementPath.replace(postContainerElementPath, '').split(' ').map((element, i) => {
+                        const isLastSelector = i === selectedElementPath.split(' ').length - 1;
+                        if (!isLastSelector) {
+                            // remove id or class from all selectors that are not the last one
+                            element = element.replace(/#|\.|:|::/g, '');
+                        }
+
+                        return element;
+                    }).join(' > ');
+
+                    // If the element is an anchor tag, add the href attribute
+                    const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep];
+                    if (selectorToBeSet.id === "url_selector" && selectedElement.includes("a")) {
+                        const indexOfA = selectedElement.indexOf("a");
+                        selectedElement = selectedElement.slice(0, indexOfA + 1) + "[href]";
                     }
+
+                    // Fix trailing spaces and > characters
+                    selectedElement = selectedElement.trim().replace(/ > /g, ' > ');
+
+                    
+                    // Set the value of the input field
                     document.querySelectorAll(".posts input")[currentStep].value = selectedElement;
-                    console.log(selectedElementPath)
-                    console.log(selectedElement)
 
                     // Move to the next step
                     steps[currentStep].classList.remove('active');
