@@ -1,0 +1,4 @@
+{
+    "persistStateIntervalMillis": 10000,
+    "logLevel": "DEBUG"
+  }

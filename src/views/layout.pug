@@ -1,9 +1,9 @@
 block variables
 doctype html
-html
+html(lang="en")
   head
     meta(charset="utf-8")
-    link(rel="shortcut icon", href="/favicon.ico")
+    link(rel="shortcut icon", href="/favicon.png")
     meta(name="viewport", content="width=device-width, initial-scale=1, shrink-to-fit=no")
     meta(name="theme-color", content="#000000")
     style(type="text/css").
@@ -40,6 +40,29 @@ html
         width: 210px;
         transition: all 120ms ease-in-out;
       }
+      .url-container {
+        display: inline-block;
+        margin-right: 1em;
+      }
+      .url-container input[type="text"] {
+        width: 100%;
+      }
+      #hidden-url-container {
+        padding-right: 1em;
+        display: table;
+        visibility: hidden;
+      }
+      input[type="text"] {
+        border: 0;
+        background-color: transparent;
+        font-size: unset;
+        padding: 0;
+        color: #6e6e6e;
+        text-decoration: underline;
+      }
+      input[type="text"]::placeholder {
+        text-decoration: none;
+      }
       @media (hover: hover) {
         .feed-preview:hover {
           transform: scale(1.05);
@@ -54,21 +77,21 @@ html
         bottom: 0;
         z-index: 1;
       }
-      .back-to-all-feeds-link {
+      .back-link {
         display: block;
         margin-bottom: 1em;
       }
       .feed-title {
         display: inline-block;
       }
-      .delete-feed {
+      .delete {
         display: inline-block;
         margin-left: .4em;
         vertical-align: 2px;
       }
-      .delete-feed__button {
+      .delete__button {
         background-color: transparent;
-        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>');
+        background-image: url('/icons/trash-2.svg');
         width: .9rem;
         height: .9rem;
         background-size: .9rem;
@@ -76,9 +99,86 @@ html
         background-position: center;
         border: none;
         cursor: pointer;
-
       }
+      .edit-website-selectors {
+        display: grid;
+        grid-template-columns: 10em 1fr;
+        width: fit-content;
+      }
+      .edit-website-selectors input[type="submit"] {
+        width: fit-content;
+        margin-top: 1em;
+      }
+      .post {
+        position: relative;
+      }
+      .post:not(.post-header) {
+        font-size: 0.9rem;
+        border-top: 1px solid #aaa;
+        cursor: pointer;
+      }
+      @media (hover: hover) {
+        .post:not(.post-header):hover {
+          background-color: #f0f0f0;
+        }
+      }
+      .post ul {
+        display: table;
+        table-layout: fixed;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+      }
+      .post ul li {
+        display: table-cell;
+        vertical-align: middle;
+      }
+      .post ul li.post-date {
+        width: 200px;
+      }
+      .hidden-link {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+      }
+      @keyframes wiggle-from-left-to-right {
+        0% {
+          transform: translateX(-.2em);
+        }
+        50% {
+          transform: translateX(.2em);
+        }
+        100% {
+          transform: translateX(-.2em);
+        }
+      }
+      .wizard-instructions li.active:after {
+        content: '⇦';
+        margin-left: .4em;
+        margin-top: -2px;
+        animation: wiggle-from-left-to-right 1s infinite;
+        display: inline-block;
+      }
+      .wizard-instructions li:not(.active) {
+        color: #aaa;
+      }
+      .wizard-selector {
+        display: grid; 
+        width: 100%;
+        grid-template-columns: 320px auto;
+      }
+      .wizard-selector iframe, .wizard-selector #post-renderer {
+        width: 100%;
+      }
+    link(rel='stylesheet', href='/css/dialog.css')
+    script(src="/js/a11y-dialog.min.js") 
     title #{title} | rssify
   body
     div#root
       block layout-content
+    script.
+      const container = document.querySelector('#dialog-container')
+      const dialog = new A11yDialog(container)

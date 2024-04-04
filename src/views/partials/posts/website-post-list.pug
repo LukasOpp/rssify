@@ -1,0 +1,16 @@
+for post in posts
+    article.post
+        a.hidden-link(href=post.url, aria-hidden='true')
+        ul
+            li.post-date
+                if post.date
+                    span=post.date
+                else
+                    span='-'
+            li.post-title
+                a.link(href=post.url)
+                    h3=post.title
+            li.post-author
+                span= post.author
+            li.post-content
+                span= post.content

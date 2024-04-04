@@ -1,0 +1,9 @@
+extends dialog-container
+
+block dialog-content
+    h2 Add a new website
+    form(action='/api/v1/feed', method='post')
+        label(for='url') URL
+        input(type='url', name='url', id='url', required)
+        button(type='submit') Add website
+    button(data-a11y-dialog-hide='dialog-id') Cancel
