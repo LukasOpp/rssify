@@ -1,0 +1,138 @@
+extends layout
+
+block variables
+  - const websiteTitle = website.url.match(/https?:\/\/w*\.?([^\/?\#]+)/)[1]
+  - const title = `${websiteTitle} | ${feed.title}`
+
+block layout-content
+    a.back-link(href=`/website/${website.id}`) &#8592; Back to website
+    div.wizard(style='font-family: Palatino, serif; ')
+        div.wizard-header(style='display: flex; align-items: center;')
+            picture(style='width: 140px;')
+                source(srcset='/img/wizard.avif', type='image/avif')
+                source(srcset='/img/wizard.webp', type='image/webp')
+                img(src='/img/wizard.png', alt='Wizard', width='300', height='378', style='width: 140px; height: auto;')
+            p#wizard-message(style='width: 50%; margin-top: 3em; color: #424242;') Say hello to the website wizard! You may have landed here because we were unable to analyse your chosen website! Please help us by following the instructions below:
+        ul.wizard-instructions(style='list-style: decimal;')
+            li Select any post on the website
+            li Select the title of the post
+            li Select the item that links to the post
+            li Select the post content
+            li Select the post date
+            li Select the post author
+        p#wizard-status
+    img(src=website.favicon_url, alt=websiteTitle, style='width: 1em; height: 1em; vertical-align: middle; margin-right: .5em;')
+    h2(style='display: inline-block;') #{websiteTitle}
+    div.wizard-selector
+        iframe.website-renderer(srcdoc=website.latest_html, style='height: 100vh; border: none;')
+        div#post-renderer
+        div.posts
+            form#post-selectors(action=`/api/v1/website/${website.id}/wizard`, method='post', target='posts-renderer')
+                input#post_selector(type='text', name='post_selector', placeholder='CSS Post selector', autocomplete="off")
+                input#title_selector(type='text', name='title_selector', placeholder='CSS Title selector', autocomplete="off")
+                input#url_selector(type='text', name='url_selector', placeholder='CSS URL selector', autocomplete="off")
+                input#content_selector(type='text', name='content_selector', placeholder='CSS Content selector', autocomplete="off")
+                input#date_selector(type='text', name='date_selector', placeholder='CSS Date selector', autocomplete="off")
+                input#author_selector(type='text', name='author_selector', placeholder='CSS Author selector', autocomplete="off")
+    script.
+        let currentStep = 0;
+        const steps = document.querySelectorAll('.wizard-instructions li');
+        steps[currentStep].classList.add('active');
+
+        // Make steps clickable
+        steps.forEach(step => {
+            step.addEventListener('click', (e) => {
+                const index = Array.from(steps).indexOf(e.target);
+                
+                if (index > -1) steps[currentStep].classList.remove('active');
+                currentStep = index;
+                steps[currentStep].classList.add('active');
+            });
+        });
+
+        window.addEventListener('message', (e) => {
+            if (e.origin === window.location.origin && e.data.selectedElementPath) {
+                const selectedElementPath = e.data.selectedElementPath;
+
+                if (currentStep === 0) {
+                    document.getElementById("post_selector").value = selectedElementPath;
+
+                    steps[currentStep].classList.remove('active');
+                    currentStep += 1;
+                    steps[currentStep].classList.add('active');
+                    return;
+                }
+
+                // Get the selected element path
+                const postContainerElementPath = document.getElementById("post_selector").value;
+                let selectedElement = selectedElementPath.split(' ').pop();
+                
+                // Check if the selected element is inside the post container
+                if (postContainerElementPath && !selectedElementPath.includes(postContainerElementPath)) {
+                    const nextButton = document.createElement('button');
+                    nextButton.innerHTML = "Next";
+                    nextButton.onclick = function() { currentStep += 1; }
+
+                    document.getElementById("wizard-message").innerHTML = "<span id='wizard-error'>Please select an element inside the post!</span>";
+                    document.getElementById("wizard-error").appendChild(nextButton);
+
+                // If the selected element is not inside the post container
+                } else {
+                    // Set the value of the input field
+                    const currentSelector = document.querySelectorAll(".posts input")[currentStep];
+                    if (currentSelector.id === "url_selector" && selectedElement.includes("a")) {
+                        selectedElement = selectedElement + "[href]";
+                    }
+                    document.querySelectorAll(".posts input")[currentStep].value = selectedElement;
+                    console.log(selectedElementPath)
+                    console.log(selectedElement)
+
+                    // Move to the next step
+                    steps[currentStep].classList.remove('active');
+                    currentStep += 1;
+
+                    // Check if the wizard is done
+                    if (currentStep >= steps.length) {
+                        currentStep = -1;
+                        document.querySelector("#wizard-message").innerHTML = "Done! Are you happy with the results?";
+                    } else {
+                        steps[currentStep].classList.add('active');
+                    }
+
+                    // Update posts
+                    const formData = new FormData(document.getElementById('post-selectors'));
+                    const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
+
+                    if (websiteIdRegex) {
+                        const websiteId = websiteIdRegex[1];
+                        console.log(formData)
+                        fetch(`/api/v1/website/${websiteId}/wizard`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(Object.fromEntries(formData))
+                        })
+                        .then(response => response.text()) // Assuming the response is text
+                        .then(data => {
+                            // Display the response in the container of your choice
+                            document.getElementById('post-renderer').innerHTML = data;
+                        })
+                        .catch(error => console.error('Error:', error));
+                    }
+                }
+
+            }
+        }, false);
+
+        const selectorInputs = document.querySelectorAll(".wizard-selector input");
+
+        selectorInputs.forEach(input => {
+            input.addEventListener("change", () => {
+                const postsToRender = getPosts();
+            });
+        });
+
+        //- const postsToRender = getPosts();
+
+

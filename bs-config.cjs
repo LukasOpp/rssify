@@ -1,9 +1,9 @@
 module.exports = {
-    proxy: "localhost:3000",
-    files: ["**/*.css", "**/*.pug", "**/*.js"],
-    ignore: ["node_modules"],
+    proxy: "http://localhost:3000",
+    files: ["**/*.css", "**/*.pug", "**/*.ts"],
+    ignore: ["node_modules", "storage"],
     reloadDelay: 10,
     ui: false,
     notify: false,
-    port: 3000,
+    port: 3001,
   };
