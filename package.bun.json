@@ -17,9 +17,9 @@
     "typescript": "5.4.3"
   },
   "scripts": {
-    "dev:backend": "nodemon --watch src --exec ts-node src/index.ts",
+    "dev:backend": "bun --watch src/index.ts",
     "dev:frontend": "browser-sync start --config bs-config.cjs",
-    "dev": "npm-run-all --parallel dev:backend dev:frontend"
+    "dev": "concurrently --kill-others \"npm run dev:backend\" \"npm run dev:frontend\""
   },
   "dependencies": {
     "crawlee": "3.8.2",

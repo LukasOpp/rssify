@@ -52,6 +52,8 @@ block layout-content
 
         window.addEventListener('message', (e) => {
             if (e.origin === window.location.origin && e.data.selectedElementPath) {
+                if (currentStep === -1) return;
+                
                 const selectedElementPath = e.data.selectedElementPath;
 
                 if (currentStep === 0) {
@@ -77,11 +79,16 @@ block layout-content
 
                 // If the selected element is not inside the post container
                 } else {
-                    let selectedElement = selectedElementPath.replace(postContainerElementPath, '').split(' ').map((element, i) => {
-                        const isLastSelector = i === selectedElementPath.split(' ').length - 1;
+                    let selectedElement = selectedElementPath.replace(postContainerElementPath, '').split(' ')
+                    selectedElement = selectedElement.map((element, i) => {
+                        console.log(element)
+                        console.log(i)
+                        console.log(selectedElement.length - 1)
+                        const isLastSelector = i === selectedElement.length - 1;
                         if (!isLastSelector) {
-                            // remove id or class from all selectors that are not the last one
-                            element = element.replace(/#|\.|:|::/g, '');
+                            // remove id or class and everything following it
+                            element = element.replace(/[#.].*$/, '');
+                            
                         }
 
                         return element;
