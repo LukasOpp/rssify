@@ -472,13 +472,17 @@ app.get(
                         const target = path[0];
 
                         const pathSelector = path.reverse().map((element, i) => {
-                            if (element.id && i === path.length - 1) {
+                            if (element.id) {
                                 return element.tagName + "#" + element.id;
                             }
                             if (element.className) {
                                 return element.tagName + "." + element.className.split(" ").join(".");
                             }
-                            if (element.tagName && element.tagName !== "HTML" && element.tagName !== "HEAD" && element.tagName !== "BODY") {
+                            if (element.tagName 
+                                && element.tagName.toLowerCase() !== "html" 
+                                && element.tagName.toLowerCase() !== "head" 
+                                && element.tagName.toLowerCase() !== "body"
+                            ) {
                                 return element.tagName.toLowerCase();
                             }
 
