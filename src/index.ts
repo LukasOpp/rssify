@@ -183,11 +183,17 @@ const insertWebsitePosts = async (
 };
 
 const initialCrawler = new CheerioCrawler({
+    // maxConcurrency: 1,
+    maxRequestRetries: 3,
+    // maxRequestsPerCrawl: 100,
+    // maxDepth: 3,
     // proxyConfiguration: new ProxyConfiguration({ proxyUrls: ['a'] }),
     requestHandler: async ({ $, request }) => {
         try {
             const body = $("body").html() as string;
-            const favicon = $('link[rel="icon"]').attr("href");
+
+            // get all link elements with rel attribute containing "icon"
+            const favicon = $("link[rel*='icon']").attr("href");
             const fullFaviconPath = favicon
                 ? new URL(favicon, request.url)
                 : new URL("/favicon.ico", request.url);
@@ -350,10 +356,18 @@ app.get(
             );
             const posts: Post[] = websites.length
                 ? await db.any(
-                      "SELECT * FROM posts WHERE website_id IN ($1:csv)",
+                      "SELECT * FROM posts WHERE website_id IN ($1:csv) ORDER BY date DESC NULLS LAST",
                       [websites.map((website) => website.id)]
                   )
                 : [];
+
+            posts.forEach((post) => {
+                if (post.date) {
+                    post.date = preferredDateFormatting.format(
+                        new Date(post.date)
+                    );
+                }
+            })
 
             const postsWithWebsite = posts.map((post) => {
                 const website = websites.find(
@@ -388,8 +402,9 @@ app.post(`/api/${apiVersion}/feed`, async (req: Request, res: Response) => {
             [title, description]
         );
 
-        res.redirect(`/feed/${response.id}`);
-        // res.status(201).send({ message: "Feed created successfully", id  });
+        const feedId = response.id;
+
+        res.redirect(`/feed/${feedId}`);
     } catch (error) {
         console.log(error);
         res.status(500).send({ message: "Internal server error" });
@@ -464,19 +479,51 @@ app.get(
 
             const wizardCodeInject = `
             <script>
+                let blockClickEvents = true;
+
+                const WIZARD_ERRORS = {
+                    SELECTION_OUTSIDE_PARENT: "SELECTION_OUTSIDE_PARENT",
+                }
+
+                window.addEventListener("message", (event) => {
+                    if (event.data === "toggleClickEvents") {
+                        blockClickEvents = !blockClickEvents;
+                        document.body.classList.toggle("selection-mode-active");
+                    }
+                });
+
                 document.addEventListener("DOMContentLoaded", () => {
+                    document.body.classList.add("selection-mode-active");
+
                     document.body.addEventListener("click", (event) => {
-                        event.preventDefault();
+                        if (blockClickEvents) event.preventDefault();
+
+                        if (document.querySelector(".post-selection-container")) {
+                            if (!event.target.closest(".post-selection-container")) {
+                                window.parent.postMessage({ wizardError: WIZARD_ERRORS.SELECTION_OUTSIDE_PARENT }, "*");
+                                return;
+                            }
+                        }
 
                         const path = event.composedPath();
                         const target = path[0];
 
                         const pathSelector = path.reverse().map((element, i) => {
-                            if (element.id) {
-                                return element.tagName + "#" + element.id;
-                            }
+                            // if (element.id && i !== path.length - 1) {
+                            //     return element.tagName.toLowerCase() + "#" + element.id;
+                            // }
+
+
+                            // add nth-child selector if element has siblings
+                            // if (element.tagName) {
+                            //     const siblings = Array.from(element.parentElement?.children || []);
+                            //     const index = siblings.indexOf(element);
+                            //     const nthChild = siblings.length > 1 ? ":nth-child(" + index + 1 + ")" : "";
+                            //     return element.tagName.toLowerCase() + nthChild;
+                            // }
+
                             if (element.className) {
-                                return element.tagName + "." + element.className.split(" ").join(".");
+                                return element.tagName.toLowerCase() + "." + element.className.trim().split(" ").join(".");
                             }
                             if (element.tagName 
                                 && element.tagName.toLowerCase() !== "html" 
@@ -487,15 +534,54 @@ app.get(
                             }
 
                             return "";
-                        }).join(" ").trim();
+                        }).join(" ").trim()
+                            .replace(".post-selection-container", "")
+                            .replace(".title-selection-container", "")
+                            .replace(".url-selection-container", "")
+                            .replace(".content-selection-container", "")
+                            .replace(".date-selection-container", "")
+                            .replace(".author-selection-container", "")
+                            .replace(".selection-mode-active", "");
+
+
 
                         window.parent.postMessage({ selectedElementPath: pathSelector }, "*");
                     });
                 });
             </script>
             <style>
-                *:hover:not(:has(*:hover)) {
-                    outline: 1px solid red !important;
+                .selection-mode-active:not(:has(.post-selection-container)) *:hover:not(:has(*:hover)) {
+                    outline: 20000px solid #00000069;
+                    // make outline appear on top of other elements
+                    z-index: 100000;
+
+                }
+                .selection-mode-active:not(:has(.post-selection-container)) * {
+                    cursor: crosshair;
+                }
+                .selection-mode-active:has(.post-selection-container) * {
+                    cursor: not-allowed;
+                }
+                .selection-mode-active:has(.post-selection-container) .post-selection-container * {
+                    cursor: crosshair;
+                }
+                .selection-mode-active .post-selection-container {
+                    outline: 20000px solid #00000069 !important;
+                }
+                .selection-mode-active .title-selection-container {
+                    outline: 2px solid green !important;
+                }
+                .selection-mode-active .url-selection-container {
+                    outline: 2px solid blue !important;
+                }
+                .selection-mode-active .content-selection-container {
+                    outline: 2px solid yellow !important;
+                }
+                .selection-mode-active .date-selection-container {
+                    outline: 2px solid orange !important;
+                }
+                .selection-mode-active .author-selection-container {
+                    outline: 2px solid purple !important;
                 }
             </style>
             `
@@ -506,6 +592,22 @@ app.get(
 
             // Inject the wizard code into the HTML
             website.latest_html = website.latest_html?.replace("</head>", `${wizardCodeInject}</head>`);
+
+            // fix relative URLs
+            const $ = cheerio.load(website.latest_html);
+            const base = new URL(website.url);
+            $("*").each((i, el) => {
+                const href = $(el).attr("href");
+                if (href && !href.startsWith("http")) {
+                    $(el).attr("href", new URL(href, base).href);
+                }
+                const src = $(el).attr("src");
+                if (src && !src.startsWith("http")) {
+                    $(el).attr("src", new URL(src, base).href);
+                }
+            });
+
+            website.latest_html = $.html();
 
             res.render("website-wizard", { website, feed });
         } catch (error) {
@@ -528,6 +630,8 @@ app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Resp
         author_selector,
     };
 
+    // check if selectors are valid jquery selectors
+
     try {
 
         const website: Website = await db.one(
@@ -540,7 +644,22 @@ app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Resp
         }
 
         const $ = cheerio.load(website.latest_html);
-        const posts: Post[] = await getPostDataForSelectors($, selectors, website.url);
+
+        let posts: Post[] = [];
+        
+        try {
+            posts = await getPostDataForSelectors($, selectors, website.url);
+        } catch (error) {
+            console.log(error);
+            res.status(500).send("Syntax error in selectors");
+            return;
+        }
+
+        if (posts.length === 0) {
+            res.status(400).send("No posts found");
+            return;
+        }
+        
 
         posts.forEach((post) => {
             if (post.date) {
@@ -555,7 +674,7 @@ app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Resp
         res.render("partials/posts/website-post-list", { website, posts });
     } catch (error) {
         console.log(error);
-        res.status(500).send({ message: "Internal server error" });
+        res.status(500).send("Server error");
     }
 });
 
@@ -570,15 +689,27 @@ app.post(`/api/${apiVersion}/website`, async (req: Request, res: Response) => {
             [formattedUrl, feedId]
         );
 
+        const websiteId = response.id;
+
         await initialCrawler.run([
             {
                 url: formattedUrl,
-                label: response.id,
-                userData: { label: response.id, useLLM: true },
+                label: websiteId,
+                userData: { label: websiteId, useLLM: true },
             },
         ]);
 
-        res.redirect(`/website/${response.id}`);
+        const posts: Post[] = await db.any(
+            "SELECT * FROM posts WHERE website_id = $1",
+            [websiteId]
+        );
+
+        if (posts.length === 0) {
+            res.redirect(`/website/${websiteId}/wizard`);
+            return;
+        }
+
+        res.redirect(`/website/${websiteId}`);
     } catch (error) {
         console.log(error);
         res.status(500).send({ message: "Internal server error" });
@@ -608,6 +739,43 @@ app.post(
                 ]);
 
                 res.redirect(`/feed/${response.feed_id}`);
+            } else if (req.body.url) {
+                const website: Website = await db.one(
+                    "SELECT * FROM websites WHERE id = $1",
+                    [websiteId]
+                );
+
+                if (!website) {
+                    res.status(404).send({ message: "Website not found" });
+                    return;
+                }
+
+                const formattedUrl = formatURL(req.body.url);
+
+                await db.none("UPDATE websites SET url = $1 WHERE id = $2", [
+                    formattedUrl,
+                    websiteId,
+                ]);
+
+                await initialCrawler.run([
+                    {
+                        url: formattedUrl,
+                        label: websiteId,
+                        userData: { label: websiteId, useLLM: true },
+                    },
+                ]);
+
+                const posts: Post[] = await db.any(
+                    "SELECT * FROM posts WHERE website_id = $1",
+                    [websiteId]
+                );
+
+                if (posts.length === 0) {
+                    res.redirect(`/website/${websiteId}/wizard`);
+                    return;
+                }
+
+                res.redirect(`/website/${websiteId}`);
             } else {
                 const website: Website = await db.one(
                     "SELECT * FROM websites WHERE id = $1",
@@ -627,6 +795,16 @@ app.post(
                     date_selector: req.body.date_selector,
                     author_selector: req.body.author_selector,
                 };
+
+                await db.none("UPDATE websites SET post_selector = $1, title_selector = $2, url_selector = $3, content_selector = $4, date_selector = $5, author_selector = $6 WHERE id = $7", [
+                    selectors.post_selector,
+                    selectors.title_selector,
+                    selectors.url_selector,
+                    selectors.content_selector,
+                    selectors.date_selector,
+                    selectors.author_selector,
+                    website.id,
+                ]);
 
                 await db.none("DELETE FROM posts WHERE website_id = $1", [
                     website.id,

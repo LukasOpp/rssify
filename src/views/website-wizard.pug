@@ -6,25 +6,51 @@ block variables
 
 block layout-content
     a.back-link(href=`/website/${website.id}`) &#8592; Back to website
+    div.website-header(style="display: flex; gap: .4em; margin-left: 40px; align-items: center;")
+        img(src=website.favicon_url, alt=websiteTitle, style='width: 1em; height: 1em;')
+        h2 #{websiteTitle}
     div.wizard(style='font-family: Palatino, serif; ')
-        div.wizard-header(style='display: flex; align-items: center;')
+        div#wizard-header(style='display: flex; align-items: center; border-radius: 50%; width: max-content;')
             picture(style='width: 140px;')
                 source(srcset='/img/wizard.avif', type='image/avif')
                 source(srcset='/img/wizard.webp', type='image/webp')
-                img(src='/img/wizard.png', alt='Wizard', width='300', height='378', style='width: 140px; height: auto;')
+                img(src='/img/wizard.png', alt='Wizard', width='300', height='378', style='width: 140px; height: auto; mix-blend-mode: darken;')
             p#wizard-message(style='width: 50%; margin-top: 3em; color: #424242;') Say hello to the website wizard! You may have landed here because we were unable to analyse your chosen website! Please help us by following the instructions below:
-        ul.wizard-instructions(style='list-style: decimal;')
-            li Select any post on the website
-            li Select the title of the post
-            li Select the item that links to the post
-            li Select the post content
-            li Select the post date
-            li Select the post author
-        p#wizard-status
-    img(src=website.favicon_url, alt=websiteTitle, style='width: 1em; height: 1em; vertical-align: middle; margin-right: .5em;')
-    h2(style='display: inline-block;') #{websiteTitle}
-    div.wizard-selector
-        iframe.website-renderer(srcdoc=website.latest_html, style='height: 100vh; border: none;')
+        ul.wizard-instructions(style='list-style: decimal; line-height: 1.5em;')
+            li#post-instruction
+                div.instruction-color-indicator(style='background-color: black;')
+                | Select any post on the website
+            li#title-instruction
+                div.instruction-color-indicator(style='background-color: green;')
+                | Select the title of the post
+                button.skip-button(onclick='goToNextStep()') Skip
+            li#url-instruction
+                div.instruction-color-indicator(style='background-color: blue;')
+                | Select the element that links to the post
+                button.skip-button(onclick='goToNextStep()') Skip
+            li#content-instruction
+                div.instruction-color-indicator(style='background-color: yellow;')
+                | Select the post content
+                button.skip-button(onclick='goToNextStep()') Skip
+            li#date-instruction
+                div.instruction-color-indicator(style='background-color: orange;')
+                | Select the post date
+                button.skip-button(onclick='goToNextStep()') Skip
+            li#author-instruction
+                div.instruction-color-indicator(style='background-color: purple;')
+                | Select the post author
+                button.skip-button(onclick='goToNextStep()') Skip
+        small.selection-options(style="font-size: .8em; color: #424242; margin-left: 3em;")
+            | You can select elements by clicking on them. If you need to turn off element selection to click something like a cookie banner, click 
+            span.selector-toggle.active
+                include partials/icons/inspect-icon.pug
+            |  below
+    br
+    div.selector-toggle.active(style="display: flex; gap: .4em; margin-left: 40px; align-items: center; width: fit-content; font-size: .8rem;")
+        include partials/icons/inspect-icon.pug
+        span.selector-toggle-label Element selection active
+    div.wizard-selector(style='margin-left: 40px;')
+        iframe#website-renderer(srcdoc=website.latest_html, style='height: 50vh; border: none; outline: 1px solid #d1d1d1;')
         div#post-renderer
         div.posts
             form#post-selectors(action=`/api/v1/website/${website.id}/wizard`, method='post', target='posts-renderer')
@@ -35,125 +61,319 @@ block layout-content
                 input#date_selector(type='text', name='date_selector', placeholder='CSS Date selector', autocomplete="off")
                 input#author_selector(type='text', name='author_selector', placeholder='CSS Author selector', autocomplete="off")
     script.
+        const WIZARD_ERRORS = {
+            SELECTION_OUTSIDE_PARENT: "SELECTION_OUTSIDE_PARENT",
+            INVALID_URL_SELECTION: "INVALID_URL_SELECTION"
+        }
+        const selectionClassNames = [
+            "post-selection-container",
+            "title-selection-container",
+            "url-selection-container",
+            "content-selection-container",
+            "date-selection-container",
+            "author-selection-container"
+        ]
         let currentStep = 0;
+        let blockClickEvents = true;
         const steps = document.querySelectorAll('.wizard-instructions li');
         steps[currentStep].classList.add('active');
 
-        // Make steps clickable
+        function restart() {
+            currentStep = 0;
+            steps[currentStep].classList.add('active');
+            document.getElementById("wizard-message").innerHTML = "Say hello to the website wizard! You may have landed here because we were unable to analyse your chosen website. Please help us by following the instructions below:";
+            document.querySelectorAll(".posts input").forEach(input => input.value = '');
+            document.getElementById("post-renderer").innerHTML = '';
+
+            document.getElementById("website-renderer").contentWindow.document.querySelectorAll('.post-selection-container').forEach(element => {
+                element.classList.remove('post-selection-container');
+            });
+
+            document.getElementById("website-renderer").contentWindow.document.querySelectorAll('.title-selection-container').forEach(element => {
+                element.classList.remove('title-selection-container');
+            });
+
+            document.getElementById("website-renderer").contentWindow.document.querySelectorAll('.url-selection-container').forEach(element => {
+                element.classList.remove('url-selection-container');
+            });
+
+            document.getElementById("website-renderer").contentWindow.document.querySelectorAll('.content-selection-container').forEach(element => {
+                element.classList.remove('content-selection-container');
+            });
+
+            document.getElementById("website-renderer").contentWindow.document.querySelectorAll('.date-selection-container').forEach(element => {
+                element.classList.remove('date-selection-container');
+            });
+
+            document.getElementById("website-renderer").contentWindow.document.querySelectorAll('.author-selection-container').forEach(element => {
+                element.classList.remove('author-selection-container');
+            });
+
+            steps.forEach(step => {
+                step.classList.remove('selectable');
+            })
+            setHoverSelectionBorderColor(currentStep);
+        }
+        function goToNextStep() {
+            // Move to the next step
+            steps[currentStep].classList.remove('active');
+            currentStep += 1;
+
+            // Check if the wizard is done
+            if (currentStep >= steps.length) {
+                currentStep = -1;
+                document.querySelector("#wizard-message").innerHTML = "Done! Are you happy with the results? <button onclick='saveAndQuit()'>Yes! Save and quit</button> <button onclick='restart()'>Restart</button>";
+            } else {
+                steps[currentStep].classList.add('active');
+            }
+            
+            setHoverSelectionBorderColor(currentStep);
+        }
+        function goToStep(step) {
+            if (typeof step !== 'number') {
+                console.error('Step must be a number');
+                return;
+            };
+            if (currentStep >= 0 & currentStep < steps.length) {
+                console.log("steps[currentStep].classList.remove('active');")
+                steps[currentStep].classList.remove('active');
+            };
+            currentStep = step;
+            steps[currentStep].classList.add('active');
+
+            setHoverSelectionBorderColor(currentStep);
+
+            document.querySelectorAll(".posts input")[currentStep].value = '';
+            updateResultingPosts()
+        }
+        function setHoverSelectionBorderColor(step) {
+            if (typeof step !== 'number') {
+                console.error('Step must be a number');
+                return;
+            };
+
+            const borderColors = [
+                "#00000069",
+                "green",
+                "blue",
+                "yellow",
+                "orange",
+                "purple"
+            ];
+            const css = `
+                .selection-mode-active:has(.post-selection-container) *:hover:not(:has(*:hover)) {
+                    outline: none;
+                }
+                .selection-mode-active:has(.post-selection-container) .post-selection-container *:hover:not(:has(*:hover)) {
+                    outline: 2px solid ${borderColors[step]};
+                }
+                `;
+            const style = document.createElement('style');
+            style.appendChild(document.createTextNode(css));
+
+            document.getElementById("website-renderer").contentWindow.document.head.appendChild(style);
+
+        }
+
+        function updateResultingPosts() {
+            const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
+            console.log(postSelectors)
+            const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
+
+            if (websiteIdRegex) {
+                const websiteId = websiteIdRegex[1];
+                fetch(`/api/v1/website/${websiteId}/wizard`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(postSelectors)
+                })
+                .then(response => response.text()) // Assuming the response is text
+                .then(data => {
+                    // Display the response in the container of your choice
+                    document.getElementById('post-renderer').innerHTML = data;
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+
+        function saveAndQuit() {
+            const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
+            console.log(postSelectors)
+            const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
+
+            if (websiteIdRegex) {
+                const websiteId = websiteIdRegex[1];
+                fetch(`/api/v1/website/${websiteId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(postSelectors)
+                })
+                .then(response => {
+                    window.location.href = response.url;
+                })
+                //- .then(response => response.text()) // Assuming the response is text
+                //- .then(data => {
+                //-     // Display the response in the container of your choice
+                //-     document.getElementById('post-renderer').innerHTML = data;
+                //- })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+
+        // if iframe ready set selection border color
+        document.getElementById("website-renderer").addEventListener('load', () => {
+            setHoverSelectionBorderColor(currentStep);
+        });
+
+
+        // Create Element Selector toggles
+        const elementSelectorToggles = document.querySelectorAll(".selector-toggle");
+        elementSelectorToggles.forEach(element => {
+            element.addEventListener('click', () => {
+                document.getElementById("website-renderer").contentWindow.postMessage("toggleClickEvents", window.location.origin);
+                blockClickEvents = !blockClickEvents;
+                elementSelectorToggles.forEach(elementSelectorToggle => {
+                    elementSelectorToggle.classList.toggle('active');
+                });
+                if (!blockClickEvents) document.querySelector(".selector-toggle span.selector-toggle-label").innerHTML = "Element selection off";
+                if (blockClickEvents) document.querySelector(".selector-toggle span.selector-toggle-label").innerHTML = "Element selection active";
+            });
+        });
+        
+        
+
+        // Make wizard steps clickable
         steps.forEach(step => {
             step.addEventListener('click', (e) => {
-                const index = Array.from(steps).indexOf(e.target);
-                
-                if (index > -1) steps[currentStep].classList.remove('active');
-                currentStep = index;
-                steps[currentStep].classList.add('active');
+                if (e.target.classList.contains('selectable')) {
+                    const index = Array.from(steps).indexOf(e.target);
+
+                    if (index === 0) {
+                        restart();
+                    }
+                    
+                    if (index > -1) steps[currentStep].classList.remove('active');
+                    goToStep(index);
+                    steps[currentStep].classList.add('active');
+
+                    if (currentStep === 0) {
+                        selectionClassNames.forEach(className => {
+                            document.getElementById("website-renderer").contentWindow.document.querySelectorAll(`.${className}`).forEach(element => {
+                                element.classList.remove(className);
+                            });
+                        });
+                    } else {
+                        document.getElementById("website-renderer").contentWindow.document.querySelectorAll(`.${selectionClassNames[currentStep]}`).forEach(element => {
+                            element.classList.remove(selectionClassNames[currentStep]);
+                        });
+                    }
+                }
             });
         });
 
-        window.addEventListener('message', (e) => {
-            if (e.origin === window.location.origin && e.data.selectedElementPath) {
-                if (currentStep === -1) return;
-                
-                const selectedElementPath = e.data.selectedElementPath;
+        function createWizardError(errorMessage) {
+            document.getElementById("wizard-message").innerHTML = `<span id='wizard-error'>${errorMessage}</span>`;
+            document.getElementById("wizard-header").animate(
+                [
+                    { 
+                        backgroundColor: 'rgb(248	112	99)',
+                        boxShadow: 'inset 0px 0px 43px 0px rgba(255,255,255,1)'
+                    },
+                    { 
+                        backgroundColor: 'transparent',
+                        boxShadow: 'inset 0px 0px 43px 0px rgba(255,255,255,1)'
+                    },
+                    //- { background: 'radial-gradient(circle, rgba(228,176,30,1) 0%, rgba(255,255,255,1) 100%)' },
+                    //- { background: 'radial-gradient(circle, rgba(228,176,30,0) 0%, rgba(255,255,255,0) 100%)' },
+                    //- { backgroundColor: 'red;' },
+                    //- { backgroundColor: 'white;' },
+                ], {
+                    duration: 1000,
+                    iterations: 1
+                }
+            );
+        }
 
+        // React to selected elements
+        window.addEventListener('message', (e) => {
+            if (!e.origin === window.location.origin) return;
+
+            if (e.data.wizardError === WIZARD_ERRORS.SELECTION_OUTSIDE_PARENT) {
+                createWizardError("Please select an element inside the post!");
+            }
+
+
+            if (e.data.selectedElementPath) {
+                if (currentStep === -1) return;
+                console.log(currentStep)
+
+                const selectedElementPath = e.data.selectedElementPath;
+                const selectedElement = document.getElementById("website-renderer").contentWindow.document.querySelector(selectedElementPath)
+
+                selectedElement.classList.add(selectionClassNames[currentStep]);
+
+                // If post is being selected
                 if (currentStep === 0) {
                     document.getElementById("post_selector").value = selectedElementPath;
 
-                    steps[currentStep].classList.remove('active');
-                    currentStep += 1;
-                    steps[currentStep].classList.add('active');
+                    goToNextStep();
+
+                    steps.forEach(step => {
+                        step.classList.add('selectable');
+                    });
+
+                    document.getElementById("wizard-message").innerHTML = "Great! Make sure your post selection contains the whole post. If it doesn't, click the first step to retry.";
                     return;
+                } else if (currentStep === 2) { // If URL is being selected
+                    // Send wizard error if the selected element is not an anchor tag
+                    if (!(selectedElement.tagName.toLowerCase() === 'a')) {
+                        createWizardError("Please select an element that links to the post!");
+                        return;
+                    }
+                } else { // 
+                    // Send wizard error if the selected element does not include text
+                    if (!selectedElement.innerText) {
+                        createWizardError("Please select an element that contains text!");
+                        return;
+                    }
                 }
 
                 // Get the selected element path
                 const postContainerElementPath = document.getElementById("post_selector").value;
                 
-                // Check if the selected element is inside the post container
-                if (postContainerElementPath && !selectedElementPath.includes(postContainerElementPath)) {
-                    const nextButton = document.createElement('button');
-                    nextButton.innerHTML = "Next";
-                    nextButton.onclick = function() { currentStep += 1; }
-
-                    document.getElementById("wizard-message").innerHTML = "<span id='wizard-error'>Please select an element inside the post!</span>";
-                    document.getElementById("wizard-error").appendChild(nextButton);
-
-                // If the selected element is not inside the post container
-                } else {
-                    let selectedElement = selectedElementPath.replace(postContainerElementPath, '').split(' ')
-                    selectedElement = selectedElement.map((element, i) => {
-                        console.log(element)
-                        console.log(i)
-                        console.log(selectedElement.length - 1)
-                        const isLastSelector = i === selectedElement.length - 1;
-                        if (!isLastSelector) {
-                            // remove id or class and everything following it
-                            element = element.replace(/[#.].*$/, '');
-                            
-                        }
-
-                        return element;
-                    }).join(' > ');
-
-                    // If the element is an anchor tag, add the href attribute
-                    const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep];
-                    if (selectorToBeSet.id === "url_selector" && selectedElement.includes("a")) {
-                        const indexOfA = selectedElement.indexOf("a");
-                        selectedElement = selectedElement.slice(0, indexOfA + 1) + "[href]";
+                let selectedElementPathFromPostToParent = selectedElementPath.replace(postContainerElementPath, '').split(' ')
+                selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.map((element, i) => {
+                    const isLastSelector = i === selectedElementPathFromPostToParent.length - 1;
+                    if (!isLastSelector) {
+                        // remove id or class and everything following it
+                        element = element.replace(/[#.].*$/, '');
                     }
+                    return element;
+                }).join(' > ');
 
-                    // Fix trailing spaces and > characters
-                    selectedElement = selectedElement.trim().replace(/ > /g, ' > ');
-
-                    
-                    // Set the value of the input field
-                    document.querySelectorAll(".posts input")[currentStep].value = selectedElement;
-
-                    // Move to the next step
-                    steps[currentStep].classList.remove('active');
-                    currentStep += 1;
-
-                    // Check if the wizard is done
-                    if (currentStep >= steps.length) {
-                        currentStep = -1;
-                        document.querySelector("#wizard-message").innerHTML = "Done! Are you happy with the results?";
-                    } else {
-                        steps[currentStep].classList.add('active');
-                    }
-
-                    // Update posts
-                    const formData = new FormData(document.getElementById('post-selectors'));
-                    const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
-
-                    if (websiteIdRegex) {
-                        const websiteId = websiteIdRegex[1];
-                        console.log(formData)
-                        fetch(`/api/v1/website/${websiteId}/wizard`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(Object.fromEntries(formData))
-                        })
-                        .then(response => response.text()) // Assuming the response is text
-                        .then(data => {
-                            // Display the response in the container of your choice
-                            document.getElementById('post-renderer').innerHTML = data;
-                        })
-                        .catch(error => console.error('Error:', error));
-                    }
+                // If the element is an anchor tag, add the href attribute
+                const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep];
+                if (selectorToBeSet.id === "url_selector" && selectedElementPathFromPostToParent.includes("a")) {
+                    const indexOfA = selectedElementPathFromPostToParent.indexOf("a");
+                    selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.slice(0, indexOfA + 1) + "[href]";
                 }
+
+                // Fix trailing spaces and > characters
+                selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.trim().replace(/ > /g, ' > ');
+
+                
+                // Set the value of the input field
+                document.querySelectorAll(".posts input")[currentStep].value = selectedElementPathFromPostToParent;
+
+                goToNextStep();
+                
+                updateResultingPosts();
 
             }
         }, false);
-
-        const selectorInputs = document.querySelectorAll(".wizard-selector input");
-
-        selectorInputs.forEach(input => {
-            input.addEventListener("change", () => {
-                const postsToRender = getPosts();
-            });
-        });
-
-        //- const postsToRender = getPosts();
 
 

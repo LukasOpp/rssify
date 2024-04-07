@@ -1,5 +1,10 @@
 export function formatURL(url: string) {
     try {
+      // prefix the URL with 'https://' if it does not have a protocol.
+      if (!url.includes('://')) {
+        url = `https://${url}`;
+      }
+
       let parsedUrl = new URL(url);
   
       // If the URL object is created successfully but the protocol is not HTTPS, change it to HTTPS.
