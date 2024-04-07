@@ -21,7 +21,7 @@
     "dev:backend": "nodemon --watch src --exec ts-node src/index.ts",
     "dev:frontend": "browser-sync start --config bs-config.cjs",
     "dev": "npm-run-all --parallel dev:backend dev:frontend",
-    "build": "tsc src/index.ts --target esnext --module esnext --outDir dist"
+    "build": "tsc src/index.ts --target esnext --module nodenext --moduleResolution nodenext --outDir dist"
   },
   "dependencies": {
     "crawlee": "3.8.2",
