@@ -5,10 +5,18 @@ block variables
   - const title = `${websiteTitle} | ${feed.title}`
 
 block layout-content
-    section.website-header(style="margin-bottom: 3em;")
+    section.website-header
         a.back-link(href=`/feed/${feed.id}`) &#8592; Back to feed
         img(src=website.favicon_url, alt=websiteTitle, style='width: 1em; height: 1em; vertical-align: middle; margin-right: .5em;')
-        h2 #{websiteTitle}
+        h2(style="display: inline-block;") #{websiteTitle}
+        form.delete(action=`/api/v1/website/${website.id}`, method='post')
+            input(type="text", name="delete", hidden, value="delete")
+            input.delete__button.delete__button--title(type='submit', value='')
+        br
+    details.website-settings
+        summary
+            include ./partials/icons/settings-icon.pug
+            h3(style="display: inline-block;") Settings
         form.edit-website-url(action=`/api/v1/website/${website.id}`, method='post')
             div.url-container
                 script.
@@ -16,96 +24,127 @@ block layout-content
                         console.log(this.value)
                         document.getElementById("hidden-url-container").innerHTML =  e.target.value;
                     }
+                label(for='url') URL:
                 input.url-input(
                     type='text', 
                     name='url', 
                     placeholder='Edit website url',
-                    oninput='onURLInput()'
-                    autocomplete='url'
+                    oninput='onURLInput'
+                    autocomplete='off'
                     value=website.url
                 )
-                div#hidden-url-container #{feed.url}
+                div#hidden-url-container(aria-hidden="true") #{feed.url}
                 script.
                     document.getElementById("hidden-url-container").innerHTML = document.querySelector(".url-input").value;
             input(type='text', name='feedId', hidden, value=feed.id)
             input(
                 type='submit', 
-                value='Edit', 
+                value='Save changes', 
             )
         a(href=`/website/${website.id}/wizard`) 🪄 Wizard
-        details
-            summary Advanced settings
-            form.edit-website-selectors(action=`/api/v1/website/${website.id}`, method='post')
-                label(for='post_selector') Post selector
-                input.post_selector(
-                    type='text', 
-                    name='post_selector', 
-                    placeholder='CSS Post selector',
-                    value=website.post_selector
-                )
-                label(for='title_selector') Title selector
-                input.title_selector(
-                    type='text', 
-                    name='title_selector', 
-                    placeholder='CSS Title selector',
-                    value=website.title_selector
-                )
-                label(for='url_selector') URL selector
-                input.url_selector(
-                    type='text', 
-                    name='url_selector', 
-                    placeholder='CSS URL selector',
-                    value=website.url_selector
-                )
-                label(for='date_selector') Date selector
-                input.date_selector(
-                    type='text', 
-                    name='date_selector', 
-                    placeholder='CSS Date selector',
-                    value=website.date_selector
-                )
-                label(for='content_selector') Content selector
-                input.content_selector(
-                    type='text', 
-                    name='content_selector', 
-                    placeholder='CSS Content selector',
-                    value=website.content_selector
-                )
-                label(for='author_selector') Author selector
-                input.author_selector(
-                    type='text', 
-                    name='author_selector', 
-                    placeholder='CSS Author selector',
-                    value=website.author_selector
-                )
-                input(
-                    type='submit', 
-                    value='Edit', 
-                )
-    section.posts
-        article.post.post-header
-            ul
-                li.post-date.post-column-header
-                    span='Date'
-                li.post-title.post-column-header
-                    span='Title'
-                li.post-author.post-column-header
-                    span='Author'
-                li.post-content.post-column-header
-                    span='Content'
-        for post in posts
-            article.post
-                a.hidden-link(href=post.url, aria-hidden='true')
-                ul
-                    li.post-date
-                        if post.date
-                            span=post.date
-                        else
-                            span='-'
-                    li.post-title
-                        a.link(href=post.url)
-                            h3=post.title
-                    li.post-author
-                        span= post.author
-                    li.post-content
-                        span= post.content
+        details.advanced-settings
+            summary Advanced
+            div.advanced-settings-editor
+                form#post-selectors.edit-website-selectors(action=`/api/v1/website/${website.id}`, method='post')
+                    label(for='post_selector') Post selector
+                    input.post_selector(
+                        type='text', 
+                        name='post_selector', 
+                        placeholder='CSS Post selector',
+                        value=website.post_selector
+                    )
+                    label(for='title_selector') Title selector
+                    input.title_selector(
+                        type='text', 
+                        name='title_selector', 
+                        placeholder='CSS Title selector',
+                        value=website.title_selector
+                    )
+                    label(for='url_selector') URL selector
+                    input.url_selector(
+                        type='text', 
+                        name='url_selector', 
+                        placeholder='CSS URL selector',
+                        value=website.url_selector
+                    )
+                    label(for='date_selector') Date selector
+                    input.date_selector(
+                        type='text', 
+                        name='date_selector', 
+                        placeholder='CSS Date selector',
+                        value=website.date_selector
+                    )
+                    label(for='content_selector') Content selector
+                    input.content_selector(
+                        type='text', 
+                        name='content_selector', 
+                        placeholder='CSS Content selector',
+                        value=website.content_selector
+                    )
+                    label(for='author_selector') Author selector
+                    input.author_selector(
+                        type='text', 
+                        name='author_selector', 
+                        placeholder='CSS Author selector',
+                        value=website.author_selector
+                    )
+                    input(
+                        type='submit', 
+                        value='Save changes', 
+                    )
+                iframe#site-renderer(data-src=website.latest_html, style="width: 100%; height: 50vh;")
+    div.website-posts
+        h3(style="display: inline-block;") Posts
+        div#post-renderer
+            include ./partials/posts/website-post-list.pug
+    script.
+        function updateResultingPosts() {
+            const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
+            console.log(postSelectors)
+
+            // if window.location.href doesnt end with / add / to the end
+            let href = window.location.href
+            if (!href.endsWith('/')) {
+                href += '/'
+            }
+
+            const websiteIdRegex = href.match(/website\/(.*?)\//);
+            console.log(websiteIdRegex)
+            if (websiteIdRegex) {
+                document.querySelector(".website-posts h3").insertAdjacentHTML('afterend', '<div class="loading-spinner"></div>');
+
+
+                const websiteId = websiteIdRegex[1];
+                fetch(`/api/v1/website/${websiteId}/wizard`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(postSelectors)
+                })
+                .then(response => response.text())
+                .then(data => {
+                    console.log(data)
+                    document.getElementById('post-renderer').innerHTML = data;
+                })
+                .catch(error => console.error('Error:', error))
+                .finally(() => {
+                    document.querySelector(".website-posts .loading-spinner").remove();
+                });
+            }
+        }
+
+        document.getElementById("post-selectors").querySelectorAll('input[type="text"]').forEach(input => {
+            let timeout = null;
+            input.addEventListener('input', function() {
+                clearTimeout(timeout);
+                timeout = setTimeout(updateResultingPosts, 500);
+            });
+        })
+
+        function loadWebsiteOnAdvancedSettingsClick() {
+            console.log('clicked')
+            document.getElementById('site-renderer').srcdoc = document.getElementById('site-renderer').attributes['data-src'].value
+        }
+
+        document.querySelector('.advanced-settings summary').addEventListener('click', loadWebsiteOnAdvancedSettingsClick)

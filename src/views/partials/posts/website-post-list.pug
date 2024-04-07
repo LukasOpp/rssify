@@ -1,16 +1,27 @@
+article.post.post-header
+    ul
+        li.post-date.post-column-header
+            span='Date'
+        li.post-title.post-column-header
+            span='Title'
+        li.post-author.post-column-header
+            span='Author'
+        li.post-content.post-column-header
+            span='Content'
 for post in posts
     article.post
-        a.hidden-link(href=post.url, aria-hidden='true')
+        if post.url
+            a.hidden-link(href=post.url, aria-hidden='true')
         ul
             li.post-date
-                if post.date
-                    span=post.date
-                else
-                    span='-'
+                span=post.date || '-'
             li.post-title
-                a.link(href=post.url)
+                if post.url
+                    a.link(href=post.url)
+                        h3=post.title
+                else 
                     h3=post.title
             li.post-author
-                span= post.author
+                span= post.author || '-'
             li.post-content
-                span= post.content
+                span= post.content || '-'

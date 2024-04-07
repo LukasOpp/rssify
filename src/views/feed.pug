@@ -8,7 +8,7 @@ block layout-content
     h2.feed-title #{feed.title}
     form.delete(action=`/api/v1/feed/${feed.id}`, method='post')
         input(type="text", name="delete", hidden, value="delete")
-        input.delete__button(type='submit', value='')
+        input.delete__button.delete__button--title(type='submit', value='')
     //- if feed.description
     //-     p #{feed.description}
     //- else
@@ -24,7 +24,7 @@ block layout-content
                 oninput='document.getElementById("hidden-url-container").innerHTML = this.value;'
                 autocomplete='url'
             )
-            div#hidden-url-container #{feed.url}
+            div#hidden-url-container(style="display: none;") #{feed.url}
             script.
                 document.getElementById("hidden-url-container").innerHTML = document.querySelector(".url-input").value;
         input(type='text', name='feedId', hidden, value=feed.id)
@@ -36,21 +36,39 @@ block layout-content
                 li
                     img(src=website.favicon_url, alt="", style='width: 1em; height: 1em; vertical-align: middle; margin-right: .5em;')
                     a(href=`/website/${website.id}`) #{website.url}
+                        include partials/icons/edit-icon.pug
                     form.delete(action=`/api/v1/website/${website.id}`, method='post')
                         input(type="text", name="delete", hidden, value="delete")
-                        input.delete__button(type='submit', value='')
+                        input.delete__button.delete__button--website(type='submit', value='')
     else
         p No websites
     section.posts
+        article.post.post-header
+            ul
+                li.post-date.post-column-header
+                    span='Source'
+                li.post-date.post-column-header
+                    span='Date'
+                li.post-title.post-column-header
+                    span='Title'
+                li.post-author.post-column-header
+                    span='Author'
+                li.post-content.post-column-header
+                    span='Content'
         for post in posts
             article.post
+                a.hidden-link(href=post.url, aria-hidden='true', target="_blank")
                 ul
                     li.post-source
                         img(src=post.website.favicon_url, alt="", style='width: 1em; height: 1em; vertical-align: middle; margin-right: .5em;')
+                        span.link #{post.website.url.split('/')[2]}
                     li.post-date
                         span=post.date
                     li.post-title
-                        a.link(href=post.url)
+                        if post.url
+                            a.link(href=post.url)
+                                h3=post.title
+                        else
                             h3=post.title
                     li.post-author
                         span= post.author

@@ -7,6 +7,9 @@ html(lang="en")
     meta(name="viewport", content="width=device-width, initial-scale=1, shrink-to-fit=no")
     meta(name="theme-color", content="#000000")
     style(type="text/css").
+      :root {
+        --link-color: #007bff;
+      }
       body {
         font-family: system-ui, sans-serif;
         margin: 1em;
@@ -14,9 +17,12 @@ html(lang="en")
         background-color: #f8f9fa;
       }
       a {
-        color: #007bff;
+        color: var(--link-color);
         text-decoration: none;
       }
+      a:link, a:visited {
+        color: var(--link-color);
+      } /* Override */
       div#root {
         max-width: 1200px;
         margin: 0 auto;
@@ -53,12 +59,12 @@ html(lang="en")
         visibility: hidden;
       }
       input[type="text"] {
-        border: 0;
-        background-color: transparent;
-        font-size: unset;
+        //- border: 0;
+        //- background-color: transparent;
+        //- font-size: unset;
         padding: 0;
         color: #6e6e6e;
-        text-decoration: underline;
+        //- text-decoration: underline;
       }
       input[type="text"]::placeholder {
         text-decoration: none;
@@ -100,10 +106,46 @@ html(lang="en")
         border: none;
         cursor: pointer;
       }
+      .delete__button--title {
+        vertical-align: -0.1em;
+      }
+      .delete__button--website {
+        vertical-align: -0.2em;
+      }
+      .edit-icon {
+        width: .9rem;
+        height: .9rem;
+        stroke: black;
+        vertical-align: -.1em;
+        margin-left: .4em;
+      }
+      .website-settings summary {
+        color: var(--link-color);
+      }
+      @media (hover: hover) {
+        .website-settings summary {
+          cursor: pointer;
+        }
+      }
+      .settings-icon {
+        width: 1.2em;
+        height: 1.2em;
+        vertical-align: -.2em;
+        margin-right: .4em;
+      }
+      .advanced-settings summary {
+        width: fit-content;
+        color: var(--link-color);
+      }
+      .advanced-settings-editor {
+        display: grid;
+        grid-template-columns: 25em 1fr;
+      }
       .edit-website-selectors {
         display: grid;
         grid-template-columns: 10em 1fr;
         width: fit-content;
+        height: fit-content;
       }
       .edit-website-selectors input[type="submit"] {
         width: fit-content;
@@ -115,11 +157,14 @@ html(lang="en")
       .post:not(.post-header) {
         font-size: 0.9rem;
         border-top: 1px solid #aaa;
-        cursor: pointer;
       }
       @media (hover: hover) {
-        .post:not(.post-header):hover {
+        .post:not(.post-header):has(.hidden-link):hover {
           background-color: #f0f0f0;
+          cursor: pointer;
+        }
+        .advanced-settings summary {
+          cursor: pointer;
         }
       }
       .post ul {
@@ -132,9 +177,10 @@ html(lang="en")
       .post ul li {
         display: table-cell;
         vertical-align: middle;
+        padding-right: 1em;
       }
-      .post ul li.post-date {
-        width: 200px;
+      .post ul li:first-child {
+        padding-left: 1em;
       }
       .hidden-link {
         position: absolute;
@@ -163,22 +209,182 @@ html(lang="en")
         display: inline-block;
       }
       .wizard-instructions li:not(.active) {
-        color: #aaa;
+        opacity: .3;
       }
+      .wizard-instructions li:not(.active) .skip-button {
+        display: none;
+      }
+
+      .wizard-instructions #post-instruction.selectable .instruction-color-indicator {
+        background-color: black;
+      }
+      .wizard-instructions #title-instruction.selectable {
+        color: color-mix(in srgb, green 40%, black);
+      }
+      .wizard-instructions #title-instruction.selectable .instruction-color-indicator {
+        background-color: green;
+      }
+      .wizard-instructions #url-instruction.selectable {
+        color: color-mix(in srgb, blue 40%, black);
+      }
+      .wizard-instructions #url-instruction.selectable .instruction-color-indicator {
+        background-color: blue;
+      }
+      .wizard-instructions #content-instruction.selectable {
+        color: color-mix(in srgb, yellow 40%, black);
+      }
+      .wizard-instructions #content-instruction.selectable .instruction-color-indicator {
+        background-color: yellow;
+      }
+      .wizard-instructions #date-instruction.selectable {
+        color: color-mix(in srgb, orange 40%, black);
+      }
+      .wizard-instructions #date-instruction.selectable .instruction-color-indicator {
+        background-color: orange;
+      }
+      .wizard-instructions #author-instruction.selectable {
+        color: color-mix(in srgb, purple 40%, black);
+      }
+      .wizard-instructions #author-instruction.selectable .instruction-color-indicator {
+        background-color: purple;
+      }
+
+      .wizard-instructions li:not(.active).selectable {
+        color: var(--link-color);
+      }
+
       .wizard-selector {
         display: grid; 
         width: 100%;
         grid-template-columns: 320px auto;
+        gap: 2em;
       }
       .wizard-selector iframe, .wizard-selector #post-renderer {
         width: 100%;
       }
+      .selector-toggle.active {
+        color: var(--link-color);
+      }
+      @media (hover: hover) {
+        .selector-toggle:hover, .wizard-instructions li:not(.active).selectable:hover {
+          cursor: pointer;
+        }
+      }
+      .skip-button {
+        margin-right: -5.7em;
+        margin-left: 3.2em;
+        font-size: .6rem;
+        padding: 0;
+        vertical-align: 1px;
+        opacity: .8;
+      }
+      .instruction-color-indicator {
+        display: inline-block; 
+        width: .5em; 
+        height: .5em; 
+        border-radius: 50%; 
+        margin-right: .5em; 
+        vertical-align: .08em;
+      }
+      #wizard-message {
+        font-style: italic;
+        font-size: 1.1em;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        vertical-align: -0.17em;
+        margin-left: .4em;
+        background-image: url('/icons/loader.svg');
+        width: 1.2em;
+        height: 1.2em;
+        animation: spin 1800ms linear infinite;
+        background-size: 1.2em;
+      }
+      .dialog-content {
+        padding: 2em;
+        padding-bottom: 3em;
+        border-radius: 1em;
+      }
+      .dialog-buttons {
+        display: flex;
+        justify-content: end;
+        column-gap: .4em;
+      }
+
     link(rel='stylesheet', href='/css/dialog.css')
     script(src="/js/a11y-dialog.min.js") 
     title #{title} | rssify
   body
     div#root
       block layout-content
+    div#are-you-sure-dialog.dialog-container(aria-labelledby="are-you-sure-dialog" aria-hidden="true")
+      div.dialog-overlay(data-a11y-dialog-hide)
+      div.dialog-content(role="document")
+        h2 Are you sure?
+        p This action cannot be undone.
+        div.dialog-buttons
+          button.dialog__close(data-a11y-dialog-hide='are-you-sure-dialog', style="filter: saturate(1.5) hue-rotate(80deg);") Cancel
+          button.dialog__confirm(data-a11y-dialog-hide='are-you-sure-dialog', style="filter: saturate(1.5) hue-rotate(257deg);") Confirm
     script.
-      const container = document.querySelector('#dialog-container')
-      const dialog = new A11yDialog(container)
+      const forms = document.querySelectorAll('form:not(.delete)')
+
+      // disable form submission while it's being processed
+      forms.forEach(form => {
+        form.addEventListener('submit', e => {
+          e.preventDefault()
+          const submitButton = form.querySelector('input[type="submit"]')
+          submitButton.disabled = true
+
+          submitButton.value = 'Processing'
+          // animate processing dots
+          let dots = 1
+          const interval = setInterval(() => {
+            dots++;
+            submitButton.value = 'Processing' + '.'.repeat(dots % 3 + 1)
+          }, 500)
+
+
+
+          fetch(form.action, {
+            method: form.method,
+            body: new URLSearchParams(new FormData(form))
+          })
+          .then(response => {
+            if (response.ok) {
+              if (response.redirected) {
+                window.location.href = response.url
+              } else {
+                window.location.reload()
+              }
+            } else {
+              submitButton.disabled = false
+              submitButton.value = 'Error! Try again'
+            }
+          })
+        })
+      })
+
+      const deleteForms = document.querySelectorAll('form.delete')
+      const areYouSureElement = document.querySelector('#are-you-sure-dialog')
+      const areYouSureDialog = new A11yDialog(areYouSureElement)
+
+      deleteForms.forEach(form => {
+        form.addEventListener('submit', e => {
+          console.log('delete')
+          e.preventDefault()
+          areYouSureDialog.show()
+          areYouSureElement.querySelector('.dialog__confirm').addEventListener('click', () => {
+            form.submit()
+          })
+        })
+      })
+
+
+
