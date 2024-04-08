@@ -356,6 +356,10 @@ app.set("views", "./src/views");
 const port = process.env.PORT || 3000;
 const apiVersion = process.env.API_VERSION || "v1";
 
+
+/*
+    -------------------- Webpages
+*/
 app.get(
     "/",
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -367,6 +371,7 @@ app.get(
         }
     }
 );
+
 app.get(
     "/feed/:id",
     async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -416,44 +421,6 @@ app.get(
     }
 );
 
-app.get(`/api/${apiVersion}/ping`, (req: Request, res: Response) => {
-    res.send("pong");
-});
-
-app.post(`/api/${apiVersion}/feed`, async (req: Request, res: Response) => {
-    const { title, description } = req.body as {
-        title: string;
-        description: string;
-    };
-
-    try {
-        const response = await db.one(
-            "INSERT INTO feeds(title, description) VALUES($1, $2) RETURNING id",
-            [title, description]
-        );
-
-        const feedId = response.id;
-
-        res.redirect(`/feed/${feedId}`);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send({ message: "Internal server error" });
-    }
-});
-app.post(`/api/${apiVersion}/feed/:id`, async (req: Request, res: Response) => {
-    const id = req.params.id;
-
-    if (req.body.delete) {
-        try {
-            await db.none("DELETE FROM websites WHERE feed_id = $1", [id]);
-            await db.none("DELETE FROM feeds WHERE id = $1", [id]);
-            res.redirect(`/`);
-        } catch (error) {
-            console.error(error);
-            res.status(500).send({ message: "Internal server error" });
-        }
-    }
-});
 app.get(
     "/website/:id",
     async (req: Request, res: Response, next: NextFunction) => {
@@ -488,6 +455,7 @@ app.get(
         }
     }
 );
+
 app.get(
     "/website/:id/wizard",
     async (req: Request, res: Response, next: NextFunction) => {
@@ -648,6 +616,49 @@ app.get(
         }
     }
 );
+
+/*
+    -------------------- API Routes
+*/
+
+app.get(`/api/${apiVersion}/ping`, (req: Request, res: Response) => {
+    res.send("pong");
+});
+
+app.post(`/api/${apiVersion}/feed`, async (req: Request, res: Response) => {
+    const { title, description } = req.body as {
+        title: string;
+        description: string;
+    };
+
+    try {
+        const response = await db.one(
+            "INSERT INTO feeds(title, description) VALUES($1, $2) RETURNING id",
+            [title, description]
+        );
+
+        const feedId = response.id;
+
+        res.redirect(`/feed/${feedId}`);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Internal server error" });
+    }
+});
+app.post(`/api/${apiVersion}/feed/:id`, async (req: Request, res: Response) => {
+    const id = req.params.id;
+
+    if (req.body.delete) {
+        try {
+            await db.none("DELETE FROM websites WHERE feed_id = $1", [id]);
+            await db.none("DELETE FROM feeds WHERE id = $1", [id]);
+            res.redirect(`/`);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send({ message: "Internal server error" });
+        }
+    }
+});
 
 app.post(
     `/api/${apiVersion}/website/:id/wizard`,
