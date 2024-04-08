@@ -4,3 +4,4 @@ storage
 dist
 *.js
 .env
+.vscode
