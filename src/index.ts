@@ -495,9 +495,9 @@ app.get(
             <script>
                 let blockClickEvents = true;
 
-                const WIZARD_ERRORS = {
-                    SELECTION_OUTSIDE_PARENT: "SELECTION_OUTSIDE_PARENT",
-                }
+                // const WIZARD_ERRORS = {
+                //     SELECTION_OUTSIDE_PARENT: "SELECTION_OUTSIDE_PARENT",
+                // }
 
                 window.addEventListener("message", (event) => {
                     if (event.data === "toggleClickEvents") {
@@ -512,12 +512,12 @@ app.get(
                     document.body.addEventListener("click", (event) => {
                         if (blockClickEvents) event.preventDefault();
 
-                        if (document.querySelector(".post-selection-container")) {
-                            if (!event.target.closest(".post-selection-container")) {
-                                window.parent.postMessage({ wizardError: WIZARD_ERRORS.SELECTION_OUTSIDE_PARENT }, "*");
-                                return;
-                            }
-                        }
+                        // if (document.querySelector(".post-selection-container")) {
+                        //     if (!event.target.closest(".post-selection-container")) {
+                        //         window.parent.postMessage({ wizardError: WIZARD_ERRORS.SELECTION_OUTSIDE_PARENT }, "*");
+                        //         return;
+                        //     }
+                        // }
 
                         const path = event.composedPath();
                         const target = path[0];
@@ -532,7 +532,7 @@ app.get(
                             // if (element.tagName) {
                             //     const siblings = Array.from(element.parentElement?.children || []);
                             //     const index = siblings.indexOf(element);
-                            //     const nthChild = siblings.length > 1 ? ":nth-child(" + index + 1 + ")" : "";
+                            //     const nthChild = siblings.length > 1 ? ":nth-child(" + Number(index + 1) + ")" : "";
                             //     return element.tagName.toLowerCase() + nthChild;
                             // }
 
@@ -548,7 +548,7 @@ app.get(
                             }
 
                             return "";
-                        }).join(" ").trim()
+                        }).filter(el => el).join(" > ").trim()
                             .replace(".post-selection-container", "")
                             .replace(".title-selection-container", "")
                             .replace(".url-selection-container", "")
@@ -565,7 +565,7 @@ app.get(
             </script>
             <style>
                 .selection-mode-active:not(:has(.post-selection-container)) *:hover:not(:has(*:hover)) {
-                    outline: 20000px solid #00000069;
+                    outline: 3px solid #00000033;
                     // make outline appear on top of other elements
                     z-index: 100000;
 

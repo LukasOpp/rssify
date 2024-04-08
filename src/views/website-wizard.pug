@@ -17,16 +17,16 @@ block layout-content
                 img(src='/img/wizard.png', alt='Wizard', width='300', height='378', style='width: 140px; height: auto; mix-blend-mode: darken;')
             p#wizard-message(style='width: 50%; margin-top: 3em; color: #424242;') Say hello to the website wizard! You may have landed here because we were unable to analyse your chosen website! Please help us by following the instructions below:
         ul.wizard-instructions(style='list-style: decimal; line-height: 1.5em;')
-            li#post-instruction
-                div.instruction-color-indicator(style='background-color: black;')
-                | Select any post on the website
+            //- li#post-instruction
+            //-     div.instruction-color-indicator(style='background-color: black;')
+            //-     | Select any post on the website
             li#title-instruction
                 div.instruction-color-indicator(style='background-color: green;')
-                | Select the title of the post
+                | Select the title of a post
                 button.skip-button(onclick='goToNextStep()') Skip
             li#url-instruction
                 div.instruction-color-indicator(style='background-color: blue;')
-                | Select the element that links to the post
+                | Select the element that links to that post
                 button.skip-button(onclick='goToNextStep()') Skip
             li#content-instruction
                 div.instruction-color-indicator(style='background-color: yellow;')
@@ -61,20 +61,29 @@ block layout-content
                 input#date_selector(type='text', name='date_selector', placeholder='CSS Date selector', autocomplete="off")
                 input#author_selector(type='text', name='author_selector', placeholder='CSS Author selector', autocomplete="off")
     script.
+        let selectedElementPaths = {
+            title_selector: null,
+            url_selector: null,
+            content_selector: null,
+            date_selector: null,
+            author_selector: null
+        }
         const WIZARD_ERRORS = {
-            SELECTION_OUTSIDE_PARENT: "SELECTION_OUTSIDE_PARENT",
+            //- SELECTION_OUTSIDE_PARENT: "SELECTION_OUTSIDE_PARENT",
             INVALID_URL_SELECTION: "INVALID_URL_SELECTION"
         }
         const selectionClassNames = [
-            "post-selection-container",
+            //- "post-selection-container",
             "title-selection-container",
             "url-selection-container",
             "content-selection-container",
             "date-selection-container",
             "author-selection-container"
         ]
+
         let currentStep = 0;
         let blockClickEvents = true;
+
         const steps = document.querySelectorAll('.wizard-instructions li');
         steps[currentStep].classList.add('active');
 
@@ -112,6 +121,15 @@ block layout-content
             steps.forEach(step => {
                 step.classList.remove('selectable');
             })
+
+            selectedElementPaths = {
+                title_selector: null,
+                url_selector: null,
+                content_selector: null,
+                date_selector: null,
+                author_selector: null
+            }
+            
             setHoverSelectionBorderColor(currentStep);
         }
         function goToNextStep() {
@@ -152,7 +170,7 @@ block layout-content
             };
 
             const borderColors = [
-                "#00000069",
+                //- "#00000069",
                 "green",
                 "blue",
                 "yellow",
@@ -249,29 +267,44 @@ block layout-content
                 if (e.target.classList.contains('selectable')) {
                     const index = Array.from(steps).indexOf(e.target);
 
+                    if (currentStep > -1 && currentStep < steps.length - 1) steps[currentStep].classList.remove('active');
+
                     if (index === 0) {
                         restart();
                     }
                     
-                    if (index > -1) steps[currentStep].classList.remove('active');
                     goToStep(index);
                     steps[currentStep].classList.add('active');
 
-                    if (currentStep === 0) {
-                        selectionClassNames.forEach(className => {
-                            document.getElementById("website-renderer").contentWindow.document.querySelectorAll(`.${className}`).forEach(element => {
-                                element.classList.remove(className);
-                            });
-                        });
-                    } else {
-                        document.getElementById("website-renderer").contentWindow.document.querySelectorAll(`.${selectionClassNames[currentStep]}`).forEach(element => {
-                            element.classList.remove(selectionClassNames[currentStep]);
-                        });
-                    }
+                    document.getElementById("website-renderer").contentWindow.document.querySelectorAll(`.${selectionClassNames[currentStep]}`).forEach(element => {
+                        element.classList.remove(selectionClassNames[currentStep]);
+                    });
                 }
             });
         });
 
+        function createWizardMessage(message) {
+            document.getElementById("wizard-message").innerHTML = message;
+            document.getElementById("wizard-header").animate(
+                [
+                    { 
+                        backgroundColor: 'rgb(100	200	148)',
+                        boxShadow: 'inset 0px 0px 43px 0px rgba(255,255,255,1)'
+                    },
+                    { 
+                        backgroundColor: 'transparent',
+                        boxShadow: 'inset 0px 0px 43px 0px rgba(255,255,255,1)'
+                    },
+                    //- { background: 'radial-gradient(circle, rgba(228,176,30,1) 0%, rgba(255,255,255,1) 100%)' },
+                    //- { background: 'radial-gradient(circle, rgba(228,176,30,0) 0%, rgba(255,255,255,0) 100%)' },
+                    //- { backgroundColor: 'red;' },
+                    //- { backgroundColor: 'white;' },
+                ], {
+                    duration: 1000,
+                    iterations: 1
+                }
+            );
+        }
         function createWizardError(errorMessage) {
             document.getElementById("wizard-message").innerHTML = `<span id='wizard-error'>${errorMessage}</span>`;
             document.getElementById("wizard-header").animate(
@@ -295,41 +328,71 @@ block layout-content
             );
         }
 
+        function cleanSelectorPath(selectorPath) {
+            return selectorPath.trim().replace(/>$/g, '').trim();
+        }
+
         // React to selected elements
         window.addEventListener('message', (e) => {
             if (!e.origin === window.location.origin) return;
 
-            if (e.data.wizardError === WIZARD_ERRORS.SELECTION_OUTSIDE_PARENT) {
-                createWizardError("Please select an element inside the post!");
-            }
+            //- if (e.data.wizardError === WIZARD_ERRORS.SELECTION_OUTSIDE_PARENT) {
+            //-     createWizardError("Please select an element inside the post!");
+            //- }
 
 
             if (e.data.selectedElementPath) {
                 if (currentStep === -1) return;
 
-                const selectedElementPath = e.data.selectedElementPath;
-                const selectedElement = document.getElementById("website-renderer").contentWindow.document.querySelector(selectedElementPath)
+                let selectedElementPath = e.data.selectedElementPath;
+
+                // if selected element doesnt begin with html tag, add it
+                //- if (!selectedElementPath.startsWith('html') && !selectedElementPath.startsWith('body')) {
+                //-     selectedElementPath = 'html body ' + selectedElementPath;
+                //- } else if (selectedElementPath.startsWith('body')) {
+                //-     selectedElementPath = 'html ' + selectedElementPath;
+                //- }
+
+                console.log({selectedElementPath})
+                let selectedElement = document.getElementById("website-renderer").contentWindow.document.querySelector(selectedElementPath)
 
                 selectedElement.classList.add(selectionClassNames[currentStep]);
 
                 // If post is being selected
-                if (currentStep === 0) {
-                    document.getElementById("post_selector").value = selectedElementPath;
+                //- if (currentStep === 0) {
+                //-     document.getElementById("post_selector").value = selectedElementPath;
 
-                    goToNextStep();
+                //-     goToNextStep();
 
                     steps.forEach(step => {
                         step.classList.add('selectable');
                     });
 
-                    document.getElementById("wizard-message").innerHTML = "Great! Make sure your post selection contains the whole post. If it doesn't, click the first step to retry.";
-                    return;
-                } else if (currentStep === 2) { // If URL is being selected
-                    // Send wizard error if the selected element is not an anchor tag
-                    if (!(selectedElement.tagName.toLowerCase() === 'a')) {
+                //-     document.getElementById("wizard-message").innerHTML = "Great! Make sure your post selection contains the whole post. If it doesn't, click the first step to retry.";
+                //-     return;
+                //- } else 
+                if (currentStep === 0) {
+                    steps.forEach(step => {
+                        step.classList.add('selectable');
+                    });
+
+                    createWizardMessage("Great! A list of post titles should appear next to the page. If they don't, perhaps try another by clicking on step 1!");
+                }
+
+                if (currentStep === 1) { // If URL is being selected
+                    // Send wizard error if the selected element path does not contain an anchor tag
+                    if (!selectedElement.closest('a')) {
                         createWizardError("Please select an element that links to the post!");
                         return;
+                    } else {
+                        // set selected element to the anchor tag
+                        selectedElement = selectedElement.closest('a');
                     }
+
+                    //- if (!(selectedElement.tagName.toLowerCase() === 'a')) {
+                    //-     createWizardError("Please select an element that links to the post!");
+                    //-     return;
+                    //- }
                 } else { // 
                     // Send wizard error if the selected element does not include text
                     if (!selectedElement.innerText) {
@@ -340,33 +403,136 @@ block layout-content
 
                 // Get the selected element path
                 const postContainerElementPath = document.getElementById("post_selector").value;
-                
-                let selectedElementPathFromPostToParent = selectedElementPath.replace(postContainerElementPath, '').split(' ')
-                selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.map((element, i) => {
-                    const isLastSelector = i === selectedElementPathFromPostToParent.length - 1;
-                    if (!isLastSelector) {
-                        // remove id or class and everything following it
-                        element = element.replace(/[#.].*$/, '');
-                    }
-                    return element;
-                }).join(' > ');
+                const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep + 1].id;
 
-                // If the element is an anchor tag, add the href attribute
-                const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep];
-                if (selectorToBeSet.id === "url_selector" && selectedElementPathFromPostToParent.includes("a")) {
-                    const indexOfA = selectedElementPathFromPostToParent.indexOf("a");
-                    selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.slice(0, indexOfA + 1) + "[href]";
+                if (selectorToBeSet === 'url_selector' && selectedElementPath.includes(" a")) {
+                    const indexOfA = selectedElementPath.lastIndexOf(" a");
+                    selectedElementPath = cleanSelectorPath(selectedElementPath.slice(0, indexOfA ) + "[href]");
                 }
 
+                selectedElementPath = selectedElementPath.trim().replace(/ > /g, ' > ');
+
+                selectedElementPaths[selectorToBeSet] = selectedElementPath
+                console.log(selectorToBeSet)
+
+                function sharedStart(array){
+                    console.log({array})
+                    if (array.length === 0) return '';
+                    if (array.length === 1) return array[0];
+                    var A= array.filter(el=>el).concat().sort(), 
+                    a1= A[0], a2= A[A.length-1], L= a1.length, i= 0;
+                    while(i<L && a1.charAt(i)=== a2.charAt(i)) i++;
+                    return a1.substring(0, i);
+                }
+
+                //- const nonNullSelectedElements = selectedElementPaths;
+                //- const nonNullSelectedElements = Object.values(selectedElementPaths)
+                const nonNullSelectedElements = Object.fromEntries(Object.entries(selectedElementPaths).filter(([key, value]) => value).map(([key, value]) => [key, value]));
+
+                console.log({nonNullSelectedElements})
+
+                let postSelector = "";
+
+                if (Object.entries(nonNullSelectedElements).length === 1) {
+                    console.log({"fdsjfs": nonNullSelectedElements[selectorToBeSet]})
+                    const selectedElementParentTagName = document.getElementById("website-renderer").contentWindow.document.querySelector(nonNullSelectedElements[selectorToBeSet]).parentElement.tagName.toLowerCase();
+                    console.log({selectedElementParentTagName})
+                    const selectedElementParentPath = cleanSelectorPath(nonNullSelectedElements[selectorToBeSet].slice(0, nonNullSelectedElements[selectorToBeSet].lastIndexOf(` ${selectedElementParentTagName}`) + 1))
+                    console.log({selectedElementParentPath})
+                    console.log({["selectedElementParentPathv2"]: nonNullSelectedElements[selectorToBeSet].slice(0, nonNullSelectedElements[selectorToBeSet].lastIndexOf(` ${selectedElementParentTagName}`) + 1)})
+
+                    postSelector = selectedElementParentPath;
+
+                    document.querySelectorAll(".posts input")[0].value = postSelector;
+                    document.querySelectorAll(".posts input")[currentStep + 1].value = cleanSelectorPath(nonNullSelectedElements[selectorToBeSet].replace(postSelector, ''));
+                } else {
+                    const greatestCommonStartSubstring = cleanSelectorPath(sharedStart(Object.values(nonNullSelectedElements)));
+
+
+                    // select parent if greatestCommonStartSubstring the same length as all nonNullSelectedElements
+                    let selectParent = Object.values(nonNullSelectedElements).every(el => el.length === greatestCommonStartSubstring.length);
+
+                    if (selectParent) {
+                        console.log({greatestCommonStartSubstring})
+                        const greatestCommonParentTagName = document.getElementById("website-renderer").contentWindow.document.querySelector(greatestCommonStartSubstring).parentElement.tagName.toLowerCase();
+                        const greatestCommonParentPath = greatestCommonStartSubstring.slice(0, greatestCommonStartSubstring.lastIndexOf(` ${greatestCommonParentTagName}`)) + ` ${greatestCommonParentTagName}`
+                        console.log({greatestCommonStartSubstring, greatestCommonParentTagName, greatestCommonParentPath})
+                        postSelector = greatestCommonParentPath;
+                    } else {
+                        postSelector = greatestCommonStartSubstring;
+                    }
+                    
+                    Object.entries(nonNullSelectedElements).map(([key, value]) => {
+                        if (!value) return;
+                        let newRelativeSelector = cleanSelectorPath(value.replace(postSelector, ''));
+                        if (newRelativeSelector.startsWith('> ')) {
+                            newRelativeSelector = newRelativeSelector.slice(2);
+                        }
+                        document.querySelector(`.posts input#${key}`).value = newRelativeSelector;
+                    });
+
+                    //- console.log({newRelativeSelectorPathsWithoutPostSelector})
+
+                    //- document.querySelectorAll(".posts input").forEach(input => {
+                    //-     if (input.id === "post_selector") {
+                    //-         input.value = postSelector
+                    //-     } else {
+                    //-         input.value = newRelativeSelectorPathsWithoutPostSelector[i - 1];
+                    //-     }
+                    //- });
+                }
+
+                
+
+                //- const newRelativeSelectorPathsWithoutPostSelector = Object.fromEntries(Object.entries(fullSelectorPaths).slice(1).map(([key, value]) => {
+                //-     let newRelativeSelector = value.replace(greatestSharedStartingSubstring, '');
+                //-     console.log({[key]: value})
+
+                    //- if (key === 'url_selector' && newRelativeSelector.includes("a")) {
+                    //-     const indexOfA = newRelativeSelector.indexOf("a");
+                    //-     newRelativeSelector = newRelativeSelector.slice(0, indexOfA + 1) + "[href]";
+                    //- }
+
+                    //- newRelativeSelector = newRelativeSelector.trim().replace(/ > /g, ' > ');
+
+                //-     return [key, newRelativeSelector];
+                //- }));
+
+                
+
+                //- document.querySelectorAll(".posts input")[1].value = fullSelectorPaths['title_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".posts input")[2].value = fullSelectorPaths['url_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".posts input")[3].value = fullSelectorPaths['content_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".posts input")[4].value = fullSelectorPaths['date_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".posts input")[5].value = fullSelectorPaths['author_selector'].replace(greatestCommonSubstring, '');
+
+                
+                //- let selectedElementPathFromPostToParent = selectedElementPath.replace(postContainerElementPath, '').split(' ')
+                //- selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.map((element, i) => {
+                //-     const isLastSelector = i === selectedElementPathFromPostToParent.length - 1;
+                //-     if (!isLastSelector) {
+                //-         // remove id or class and everything following it
+                //-         element = element.replace(/[#.].*$/, '');
+                //-     }
+                //-     return element;
+                //- }).join(' > ');
+
+                // If the element is an anchor tag, add the href attribute
+                //- const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep];
+                //- if (selectorToBeSet.id === "url_selector" && selectedElementPathFromPostToParent.includes("a")) {
+                //-     const indexOfA = selectedElementPathFromPostToParent.indexOf("a");
+                //-     selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.slice(0, indexOfA + 1) + "[href]";
+                //- }
+
                 // Fix trailing spaces and > characters
-                selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.trim().replace(/ > /g, ' > ');
+                //- selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.trim().replace(/ > /g, ' > ');
 
                 
                 // Set the value of the input field
-                document.querySelectorAll(".posts input")[currentStep].value = selectedElementPathFromPostToParent;
+                //- document.querySelectorAll(".posts input")[currentStep].value = selectedElementPathFromPostToParent;
 
                 goToNextStep();
-                
+
                 updateResultingPosts();
 
             }
