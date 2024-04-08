@@ -1,18 +1,16 @@
 import express, { Request, Response, NextFunction, Express } from "express";
 import pgPromise from "pg-promise";
-import cron from "node-cron";
+// import cron from "node-cron";
 import dotenv from "dotenv";
 import {
-    PlaywrightCrawler,
-    ProxyConfiguration,
+    // PlaywrightCrawler,
+    // ProxyConfiguration,
     Dataset,
     CheerioCrawler,
 } from "crawlee";
 import * as cheerio from "cheerio";
 import { formatURL } from "./js/helpers";
 import OpenAI from "openai";
-import { resolve } from "path";
-import { get } from "http";
 
 dotenv.config();
 
@@ -348,8 +346,6 @@ const preferredDateFormatting = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "2-digit",
 });
-
-// const {value} = await db.one('SELECT 123 as value');
 
 app.use(express.static("public"));
 app.use(express.json());
