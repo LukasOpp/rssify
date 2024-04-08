@@ -95,7 +95,10 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-const getDataForSelector = (parent: cheerio.Cheerio<cheerio.Element>, selector: string | undefined): string | undefined => {
+const getDataForSelector = (
+    parent: cheerio.Cheerio<cheerio.Element>,
+    selector: string | undefined
+): string | undefined => {
     if (!selector) {
         return undefined;
     }
@@ -108,7 +111,7 @@ const getDataForSelector = (parent: cheerio.Cheerio<cheerio.Element>, selector: 
     } else {
         return parent.find(selector).first().text();
     }
-}
+};
 
 const getPostDataForSelectors = async (
     $: cheerio.CheerioAPI,
@@ -120,16 +123,22 @@ const getPostDataForSelectors = async (
     const posts: Post[] = postContainers
         .map((i, postContainer) => {
             const postElement = $(postContainer);
-            const title = getDataForSelector(postElement, selectors.title_selector);
+            const title = getDataForSelector(
+                postElement,
+                selectors.title_selector
+            );
             let url = getDataForSelector(postElement, selectors.url_selector);
-            
+
             if (url && !url.startsWith("http")) {
                 const baseUrl = new URL(origin);
                 url = new URL(url, baseUrl).href;
             }
-            const content = getDataForSelector(postElement, selectors.content_selector);
+            const content = getDataForSelector(
+                postElement,
+                selectors.content_selector
+            );
 
-            let date = getDataForSelector(postElement, selectors.date_selector)
+            let date = getDataForSelector(postElement, selectors.date_selector);
             if (date) {
                 if (selectors.date_regex) {
                     const regex = new RegExp(selectors.date_regex);
@@ -144,10 +153,12 @@ const getPostDataForSelectors = async (
                 } else {
                     date = dateObject.toISOString();
                 }
-                
             }
 
-            let author = getDataForSelector(postElement, selectors.author_selector)
+            let author = getDataForSelector(
+                postElement,
+                selectors.author_selector
+            );
             if (author && selectors.author_regex) {
                 const regex = new RegExp(selectors.author_regex);
                 const match = author.match(regex);
@@ -244,7 +255,6 @@ const crawler = new CheerioCrawler({
                             date_regex: answerJson.date_regex,
                             author_regex: answerJson.author_regex,
                         };
-
                     } catch (error) {
                         await Dataset.pushData({
                             url: request.url,
@@ -312,7 +322,11 @@ const crawler = new CheerioCrawler({
             );
 
             if (selectors && Object.keys(selectors).length > 0) {
-                const posts = await getPostDataForSelectors($, selectors, request.url);
+                const posts = await getPostDataForSelectors(
+                    $,
+                    selectors,
+                    request.url
+                );
 
                 if (!request.label) {
                     throw new Error("No label found in request");
@@ -387,7 +401,7 @@ app.get(
                         new Date(post.date)
                     );
                 }
-            })
+            });
 
             const postsWithWebsite = posts.map((post) => {
                 const website = websites.find(
@@ -604,14 +618,17 @@ app.get(
                     outline: 2px solid purple !important;
                 }
             </style>
-            `
+            `;
 
             if (!website.latest_html) {
                 throw new Error("No HTML found for website");
             }
 
             // Inject the wizard code into the HTML
-            website.latest_html = website.latest_html?.replace("</head>", `${wizardCodeInject}</head>`);
+            website.latest_html = website.latest_html?.replace(
+                "</head>",
+                `${wizardCodeInject}</head>`
+            );
 
             // fix relative URLs
             const $ = cheerio.load(website.latest_html);
@@ -636,65 +653,80 @@ app.get(
     }
 );
 
-app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Response) => {
-    const websiteId = req.params.id;
-    const { post_selector, title_selector, url_selector, content_selector, date_selector, author_selector, date_regex, author_regex } = req.body;
+app.post(
+    `/api/${apiVersion}/website/:id/wizard`,
+    async (req: Request, res: Response) => {
+        const websiteId = req.params.id;
+        const {
+            post_selector,
+            title_selector,
+            url_selector,
+            content_selector,
+            date_selector,
+            author_selector,
+            date_regex,
+            author_regex,
+        } = req.body;
 
-    const selectors: WebsiteSelectors = {
-        post_selector,
-        title_selector,
-        url_selector,
-        content_selector,
-        date_selector,
-        author_selector,
-        date_regex,
-        author_regex,
-    };
+        const selectors: WebsiteSelectors = {
+            post_selector,
+            title_selector,
+            url_selector,
+            content_selector,
+            date_selector,
+            author_selector,
+            date_regex,
+            author_regex,
+        };
 
-    // check if selectors are valid jquery selectors
+        // check if selectors are valid jquery selectors
 
-    try {
-        const website: Website = await db.one(
-            "SELECT * FROM websites WHERE id = $1",
-            [websiteId]
-        );
-
-        if (!website.latest_html) {
-            throw new Error("No HTML found for website");
-        }
-
-        const $ = cheerio.load(website.latest_html);
-
-        let posts: Post[] = [];
-        
         try {
-            posts = await getPostDataForSelectors($, selectors, website.url);
+            const website: Website = await db.one(
+                "SELECT * FROM websites WHERE id = $1",
+                [websiteId]
+            );
+
+            if (!website.latest_html) {
+                throw new Error("No HTML found for website");
+            }
+
+            const $ = cheerio.load(website.latest_html);
+
+            let posts: Post[] = [];
+
+            try {
+                posts = await getPostDataForSelectors(
+                    $,
+                    selectors,
+                    website.url
+                );
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Syntax error in selectors");
+                return;
+            }
+
+            if (posts.length === 0) {
+                res.status(400).send("No posts found");
+                return;
+            }
+
+            posts.forEach((post) => {
+                if (post.date) {
+                    post.date = preferredDateFormatting.format(
+                        new Date(post.date)
+                    );
+                }
+            });
+
+            res.render("partials/posts/website-post-list", { website, posts });
         } catch (error) {
             console.error(error);
-            res.status(500).send("Syntax error in selectors");
-            return;
+            res.status(500).send("Server error");
         }
-
-        if (posts.length === 0) {
-            res.status(400).send("No posts found");
-            return;
-        }
-        
-
-        posts.forEach((post) => {
-            if (post.date) {
-                post.date = preferredDateFormatting.format(
-                    new Date(post.date)
-                );
-            }
-        });
-
-        res.render("partials/posts/website-post-list", { website, posts });
-    } catch (error) {
-        console.error(error);
-        res.status(500).send("Server error");
     }
-});
+);
 
 app.post(`/api/${apiVersion}/website`, async (req: Request, res: Response) => {
     const { url, feedId } = req.body as { url: string; feedId: string };
@@ -816,17 +848,20 @@ app.post(
                     author_regex: req.body.author_regex,
                 };
 
-                await db.none("UPDATE websites SET post_selector = $1, title_selector = $2, url_selector = $3, content_selector = $4, date_selector = $5, author_selector = $6, date_regex = $7, author_regex = $8 WHERE id = $9", [
-                    selectors.post_selector,
-                    selectors.title_selector,
-                    selectors.url_selector,
-                    selectors.content_selector,
-                    selectors.date_selector,
-                    selectors.author_selector,
-                    selectors.date_regex,
-                    selectors.author_regex,
-                    website.id,
-                ]);
+                await db.none(
+                    "UPDATE websites SET post_selector = $1, title_selector = $2, url_selector = $3, content_selector = $4, date_selector = $5, author_selector = $6, date_regex = $7, author_regex = $8 WHERE id = $9",
+                    [
+                        selectors.post_selector,
+                        selectors.title_selector,
+                        selectors.url_selector,
+                        selectors.content_selector,
+                        selectors.date_selector,
+                        selectors.author_selector,
+                        selectors.date_regex,
+                        selectors.author_regex,
+                        website.id,
+                    ]
+                );
 
                 await db.none("DELETE FROM posts WHERE website_id = $1", [
                     website.id,
@@ -834,7 +869,11 @@ app.post(
 
                 if (website.latest_html) {
                     const $ = cheerio.load(website.latest_html);
-                    const posts: Post[] = await getPostDataForSelectors($, selectors, website.url);
+                    const posts: Post[] = await getPostDataForSelectors(
+                        $,
+                        selectors,
+                        website.url
+                    );
                     await insertWebsitePosts(posts, website.id);
                 } else {
                     await crawler.run([
