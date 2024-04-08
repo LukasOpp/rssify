@@ -10,6 +10,7 @@ Running at http://s0k4w4w.5.75.242.145.sslip.io
 - No history crawling
 (somewhat easy with Crawlee)
 - No user management
+Would be nice to have Feed voting / saving mechanism
 - Would be good to get away from OpenAI
 - URL autocompletion would be nice
 - Saving canonical parsing configs for URLs would be nice
