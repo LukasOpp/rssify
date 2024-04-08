@@ -385,7 +385,6 @@ html(lang="en")
 
       deleteForms.forEach(form => {
         form.addEventListener('submit', e => {
-          console.log('delete')
           e.preventDefault()
           areYouSureDialog.show()
           areYouSureElement.querySelector('.dialog__confirm').addEventListener('click', () => {

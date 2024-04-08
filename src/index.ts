@@ -116,7 +116,6 @@ const getPostDataForSelectors = async (
     origin: string
 ): Promise<Post[]> => {
     const postContainers = $("body").find(selectors.post_selector);
-    console.log("getting post data for selectors", selectors)
 
     const posts: Post[] = postContainers
         .map((i, postContainer) => {
@@ -199,17 +198,11 @@ const insertWebsitePosts = async (
     });
 };
 
-const initialCrawler = new CheerioCrawler({
-    // maxConcurrency: 1,
+const crawler = new CheerioCrawler({
     maxRequestRetries: 3,
-    // maxRequestsPerCrawl: 100,
-    // maxDepth: 3,
-    // proxyConfiguration: new ProxyConfiguration({ proxyUrls: ['a'] }),
     requestHandler: async ({ $, request }) => {
         try {
             const body = $("body").html() as string;
-            console.log("init request handler")
-            console.log({body})
 
             // get all link elements with rel attribute containing "icon"
             const favicon = $("link[rel*='icon']").attr("href");
@@ -220,7 +213,6 @@ const initialCrawler = new CheerioCrawler({
             let selectors: WebsiteSelectors = {};
 
             if (request.userData.useLLM) {
-                console.log("init llm")
                 const answer = await openai.chat.completions.create({
                     model: "gpt-4-turbo-preview",
                     messages: [
@@ -230,7 +222,6 @@ const initialCrawler = new CheerioCrawler({
                         },
                     ],
                 });
-                console.log({answer})
 
                 if (answer.choices[0].message.content) {
                     try {
@@ -254,7 +245,6 @@ const initialCrawler = new CheerioCrawler({
                             author_regex: answerJson.author_regex,
                         };
 
-                        console.log("received llm response", selectors)
                     } catch (error) {
                         await Dataset.pushData({
                             url: request.url,
@@ -292,7 +282,6 @@ const initialCrawler = new CheerioCrawler({
                     });
                 }
             }
-            console.log("updating website")
             await db.none(
                 `UPDATE websites 
             SET latest_html = $1, 
@@ -321,8 +310,6 @@ const initialCrawler = new CheerioCrawler({
                     request.label,
                 ]
             );
-
-            console.log("updated website")
 
             if (selectors && Object.keys(selectors).length > 0) {
                 const posts = await getPostDataForSelectors($, selectors, request.url);
@@ -439,7 +426,7 @@ app.post(`/api/${apiVersion}/feed`, async (req: Request, res: Response) => {
 
         res.redirect(`/feed/${feedId}`);
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).send({ message: "Internal server error" });
     }
 });
@@ -452,7 +439,7 @@ app.post(`/api/${apiVersion}/feed/:id`, async (req: Request, res: Response) => {
             await db.none("DELETE FROM feeds WHERE id = $1", [id]);
             res.redirect(`/`);
         } catch (error) {
-            console.log(error);
+            console.error(error);
             res.status(500).send({ message: "Internal server error" });
         }
     }
@@ -650,7 +637,6 @@ app.get(
 );
 
 app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Response) => {
-    console.log(req.body);
     const websiteId = req.params.id;
     const { post_selector, title_selector, url_selector, content_selector, date_selector, author_selector, date_regex, author_regex } = req.body;
 
@@ -684,7 +670,7 @@ app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Resp
         try {
             posts = await getPostDataForSelectors($, selectors, website.url);
         } catch (error) {
-            console.log(error);
+            console.error(error);
             res.status(500).send("Syntax error in selectors");
             return;
         }
@@ -703,11 +689,9 @@ app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Resp
             }
         });
 
-        console.log(posts)
-
         res.render("partials/posts/website-post-list", { website, posts });
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).send("Server error");
     }
 });
@@ -725,7 +709,7 @@ app.post(`/api/${apiVersion}/website`, async (req: Request, res: Response) => {
 
         const websiteId = response.id;
 
-        await initialCrawler.run([
+        await crawler.run([
             {
                 url: formattedUrl,
                 label: websiteId,
@@ -738,8 +722,6 @@ app.post(`/api/${apiVersion}/website`, async (req: Request, res: Response) => {
             [websiteId]
         );
 
-        console.log({posts});
-
         if (posts.length === 0) {
             res.redirect(`/website/${websiteId}/wizard`);
             return;
@@ -747,7 +729,7 @@ app.post(`/api/${apiVersion}/website`, async (req: Request, res: Response) => {
 
         res.redirect(`/website/${websiteId}`);
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.status(500).send({ message: "Internal server error" });
     }
 });
@@ -793,7 +775,7 @@ app.post(
                     websiteId,
                 ]);
 
-                await initialCrawler.run([
+                await crawler.run([
                     {
                         url: formattedUrl,
                         label: websiteId,
@@ -855,7 +837,7 @@ app.post(
                     const posts: Post[] = await getPostDataForSelectors($, selectors, website.url);
                     await insertWebsitePosts(posts, website.id);
                 } else {
-                    await initialCrawler.run([
+                    await crawler.run([
                         {
                             url: website.url,
                             userData: { selectors, label: website.id },
@@ -866,7 +848,7 @@ app.post(
                 res.redirect(`/website/${website.id}`);
             }
         } catch (error) {
-            console.log(error);
+            console.error(error);
             res.status(500).send({ message: "Internal server error" });
         }
     }

@@ -21,7 +21,6 @@ block layout-content
             div.url-container
                 script.
                     function onURLInput(e) {
-                        console.log(this.value)
                         document.getElementById("hidden-url-container").innerHTML =  e.target.value;
                     }
                 label(for='url') URL:
@@ -114,16 +113,13 @@ block layout-content
     script.
         function updateResultingPosts() {
             const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
-            console.log(postSelectors)
 
-            // if window.location.href doesnt end with / add / to the end
             let href = window.location.href
             if (!href.endsWith('/')) {
                 href += '/'
             }
 
             const websiteIdRegex = href.match(/website\/(.*?)\//);
-            console.log(websiteIdRegex)
             if (websiteIdRegex) {
                 document.querySelector(".website-posts h3").insertAdjacentHTML('afterend', '<div class="loading-spinner"></div>');
 
@@ -138,7 +134,6 @@ block layout-content
                 })
                 .then(response => response.text())
                 .then(data => {
-                    console.log(data)
                     document.getElementById('post-renderer').innerHTML = data;
                 })
                 .catch(error => console.error('Error:', error))
@@ -157,7 +152,6 @@ block layout-content
         })
 
         function loadWebsiteOnAdvancedSettingsClick() {
-            console.log('clicked')
             document.getElementById('site-renderer').srcdoc = document.getElementById('site-renderer').attributes['data-src'].value
         }
 

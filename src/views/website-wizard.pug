@@ -135,7 +135,6 @@ block layout-content
                 return;
             };
             if (currentStep >= 0 & currentStep < steps.length) {
-                console.log("steps[currentStep].classList.remove('active');")
                 steps[currentStep].classList.remove('active');
             };
             currentStep = step;
@@ -177,7 +176,6 @@ block layout-content
 
         function updateResultingPosts() {
             const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
-            console.log(postSelectors)
             const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
 
             if (websiteIdRegex) {
@@ -200,7 +198,6 @@ block layout-content
 
         function saveAndQuit() {
             const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
-            console.log(postSelectors)
             const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
 
             if (websiteIdRegex) {
@@ -309,7 +306,6 @@ block layout-content
 
             if (e.data.selectedElementPath) {
                 if (currentStep === -1) return;
-                console.log(currentStep)
 
                 const selectedElementPath = e.data.selectedElementPath;
                 const selectedElement = document.getElementById("website-renderer").contentWindow.document.querySelector(selectedElementPath)
