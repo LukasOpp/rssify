@@ -22,7 +22,7 @@ html(lang="en")
       }
       a:link, a:visited {
         color: var(--link-color);
-      } /* Override */
+      }
       div#root {
         max-width: 1200px;
         margin: 0 auto;
@@ -45,6 +45,11 @@ html(lang="en")
 
         width: 210px;
         transition: all 120ms ease-in-out;
+      }
+      .add-new-feed-button form {
+        display: flex;
+        flex-direction: column;
+        gap: .4em;
       }
       .url-container {
         display: inline-block;
@@ -325,7 +330,7 @@ html(lang="en")
     script(src="/js/a11y-dialog.min.js") 
     title #{title} | rssify
   body
-    div#root
+    main
       block layout-content
     div#are-you-sure-dialog.dialog-container(aria-labelledby="are-you-sure-dialog" aria-hidden="true")
       div.dialog-overlay(data-a11y-dialog-hide)

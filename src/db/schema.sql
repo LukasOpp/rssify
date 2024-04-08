@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS websites (
     content_selector    text,
     date_selector       text,
     author_selector     text,
+    date_regex          text,
+    author_regex        text,
     latest_html         text,
     last_crawled        timestamptz
 );
@@ -31,10 +33,3 @@ CREATE TABLE IF NOT EXISTS posts (
     author                text,
     date_crawled          timestamptz
 );
-
--- ALTER TABLE posts MODIFY COLUMN uuid REFERENCES websites (id) ON DELETE CASCADE;
--- ALTER TABLE posts RENAME COLUMN source_website_id TO website_id;
--- DROP TABLE feeds CASCADE;
--- DROP TABLE websites CASCADE;
-
--- DROP TABLE posts CASCADE;

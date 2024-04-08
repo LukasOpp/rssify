@@ -88,6 +88,20 @@ block layout-content
                         placeholder='CSS Author selector',
                         value=website.author_selector
                     )
+                    label(for='date_regex') Date regex
+                    input.date_regex(
+                        type='text', 
+                        name='date_regex', 
+                        placeholder='Date regex',
+                        value=website.date_regex
+                    )
+                    label(for='author_regex') Author regex
+                    input.author_regex(
+                        type='text', 
+                        name='author_regex', 
+                        placeholder='Author regex',
+                        value=website.author_regex
+                    )
                     input(
                         type='submit', 
                         value='Save changes', 
