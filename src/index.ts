@@ -54,6 +54,8 @@ interface WebsiteSelectors {
     content_selector?: string;
     date_selector?: string;
     author_selector?: string;
+    date_regex?: string;
+    author_regex?: string;
 }
 
 interface Website extends WebsiteSelectors {
@@ -114,6 +116,7 @@ const getPostDataForSelectors = async (
     origin: string
 ): Promise<Post[]> => {
     const postContainers = $("body").find(selectors.post_selector);
+    console.log("getting post data for selectors", selectors)
 
     const posts: Post[] = postContainers
         .map((i, postContainer) => {
@@ -129,6 +132,13 @@ const getPostDataForSelectors = async (
 
             let date = getDataForSelector(postElement, selectors.date_selector)
             if (date) {
+                if (selectors.date_regex) {
+                    const regex = new RegExp(selectors.date_regex);
+                    const match = date.match(regex);
+                    if (match) {
+                        date = match[1];
+                    }
+                }
                 const dateObject = new Date(date);
                 if (isNaN(dateObject.getTime())) {
                     date = undefined;
@@ -139,6 +149,13 @@ const getPostDataForSelectors = async (
             }
 
             let author = getDataForSelector(postElement, selectors.author_selector)
+            if (author && selectors.author_regex) {
+                const regex = new RegExp(selectors.author_regex);
+                const match = author.match(regex);
+                if (match) {
+                    author = match[1];
+                }
+            }
 
             return {
                 title,
@@ -191,6 +208,8 @@ const initialCrawler = new CheerioCrawler({
     requestHandler: async ({ $, request }) => {
         try {
             const body = $("body").html() as string;
+            console.log("init request handler")
+            console.log({body})
 
             // get all link elements with rel attribute containing "icon"
             const favicon = $("link[rel*='icon']").attr("href");
@@ -201,15 +220,17 @@ const initialCrawler = new CheerioCrawler({
             let selectors: WebsiteSelectors = {};
 
             if (request.userData.useLLM) {
+                console.log("init llm")
                 const answer = await openai.chat.completions.create({
                     model: "gpt-4-turbo-preview",
                     messages: [
                         {
-                            content: `give me the jquery selectors for post, post title, post url, post content, post date and post author for the following html, but respond to me only as a JSON with keys "post_selector", "title_selector", "url_selector", "content_selector", "date_selector" and "author_selector". make every selector except "post_selector" relative to "post_selector". it is okay to set selectors to null if you can't find anything good. please find the most explicit data, for example you should prefer timestamps over relative datetime like "3 hours ago". include attributes in the selector with brackets, not with an @. you may use jquery selectors like :contains and :first. \n\n${body}`,
+                            content: `give me the jquery selectors for post, post title, post url, post content, post date and post author for the following html, but respond to me only as a JSON with keys "post_selector", "title_selector", "url_selector", "content_selector", "date_selector" and "author_selector". make every selector except "post_selector" relative to "post_selector". it is okay to set selectors to null if you can't find anything good. please find the most explicit data, for example you should prefer timestamps over relative datetime like "3 hours ago". include attributes in the selector with brackets, not with an @. you may use jquery selectors like :contains and :first. if you are looking for either date or author and find an element that contains the data you're looking for but also contains other text, you may additionally specify a regex expression "(date|author)_regex" that would correctly match the data you're looking for. \n\n${body}`,
                             role: "system",
                         },
                     ],
                 });
+                console.log({answer})
 
                 if (answer.choices[0].message.content) {
                     try {
@@ -229,7 +250,11 @@ const initialCrawler = new CheerioCrawler({
                             content_selector: answerJson.content_selector,
                             date_selector: answerJson.date_selector,
                             author_selector: answerJson.author_selector,
+                            date_regex: answerJson.date_regex,
+                            author_regex: answerJson.author_regex,
                         };
+
+                        console.log("received llm response", selectors)
                     } catch (error) {
                         await Dataset.pushData({
                             url: request.url,
@@ -257,6 +282,8 @@ const initialCrawler = new CheerioCrawler({
                         content_selector: website.content_selector,
                         date_selector: website.date_selector,
                         author_selector: website.author_selector,
+                        date_regex: website.date_regex,
+                        author_regex: website.author_regex,
                     };
                 } else {
                     await Dataset.pushData({
@@ -265,7 +292,7 @@ const initialCrawler = new CheerioCrawler({
                     });
                 }
             }
-
+            console.log("updating website")
             await db.none(
                 `UPDATE websites 
             SET latest_html = $1, 
@@ -276,8 +303,10 @@ const initialCrawler = new CheerioCrawler({
             url_selector = $5,
             content_selector = $6,
             date_selector = $7,
-            author_selector = $8
-            WHERE id = $9`,
+            author_selector = $8,
+            date_regex = $9,
+            author_regex = $10
+            WHERE id = $11`,
                 [
                     $("html").html(),
                     fullFaviconPath.href,
@@ -287,9 +316,13 @@ const initialCrawler = new CheerioCrawler({
                     selectors.content_selector,
                     selectors.date_selector,
                     selectors.author_selector,
+                    selectors.date_regex,
+                    selectors.author_regex,
                     request.label,
                 ]
             );
+
+            console.log("updated website")
 
             if (selectors && Object.keys(selectors).length > 0) {
                 const posts = await getPostDataForSelectors($, selectors, request.url);
@@ -303,7 +336,7 @@ const initialCrawler = new CheerioCrawler({
         } catch (error) {
             Dataset.pushData({
                 url: request.url,
-                context: "Cheerio error",
+                context: JSON.stringify(error),
             });
         }
     },
@@ -619,7 +652,7 @@ app.get(
 app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Response) => {
     console.log(req.body);
     const websiteId = req.params.id;
-    const { post_selector, title_selector, url_selector, content_selector, date_selector, author_selector } = req.body;
+    const { post_selector, title_selector, url_selector, content_selector, date_selector, author_selector, date_regex, author_regex } = req.body;
 
     const selectors: WebsiteSelectors = {
         post_selector,
@@ -628,12 +661,13 @@ app.post(`/api/${apiVersion}/website/:id/wizard`, async (req: Request, res: Resp
         content_selector,
         date_selector,
         author_selector,
+        date_regex,
+        author_regex,
     };
 
     // check if selectors are valid jquery selectors
 
     try {
-
         const website: Website = await db.one(
             "SELECT * FROM websites WHERE id = $1",
             [websiteId]
@@ -703,6 +737,8 @@ app.post(`/api/${apiVersion}/website`, async (req: Request, res: Response) => {
             "SELECT * FROM posts WHERE website_id = $1",
             [websiteId]
         );
+
+        console.log({posts});
 
         if (posts.length === 0) {
             res.redirect(`/website/${websiteId}/wizard`);
@@ -794,15 +830,19 @@ app.post(
                     content_selector: req.body.content_selector,
                     date_selector: req.body.date_selector,
                     author_selector: req.body.author_selector,
+                    date_regex: req.body.date_regex,
+                    author_regex: req.body.author_regex,
                 };
 
-                await db.none("UPDATE websites SET post_selector = $1, title_selector = $2, url_selector = $3, content_selector = $4, date_selector = $5, author_selector = $6 WHERE id = $7", [
+                await db.none("UPDATE websites SET post_selector = $1, title_selector = $2, url_selector = $3, content_selector = $4, date_selector = $5, author_selector = $6, date_regex = $7, author_regex = $8 WHERE id = $9", [
                     selectors.post_selector,
                     selectors.title_selector,
                     selectors.url_selector,
                     selectors.content_selector,
                     selectors.date_selector,
                     selectors.author_selector,
+                    selectors.date_regex,
+                    selectors.author_regex,
                     website.id,
                 ]);
 
