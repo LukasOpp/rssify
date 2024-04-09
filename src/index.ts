@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction, Express } from "express";
+import express, { Request, Response, Express } from "express";
 import pgPromise from "pg-promise";
 // import cron from "node-cron";
 import dotenv from "dotenv";
@@ -11,6 +11,7 @@ import {
 import * as cheerio from "cheerio";
 import { formatURL } from "./js/helpers";
 import OpenAI from "openai";
+import { log } from "console";
 
 dotenv.config();
 
@@ -362,21 +363,26 @@ const apiVersion = process.env.API_VERSION || "v1";
 */
 app.get(
     "/",
-    async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    async (req: Request, res: Response): Promise<void> => {
         try {
             const feeds: Feed[] = await db.any("SELECT * FROM feeds");
             res.render("index", { feeds });
         } catch (error: unknown) {
-            next(new Error((error as Error).message));
+            Dataset.pushData({
+                url: "/",
+                context: "Error fetching feeds",
+                error: (error as Error).message,
+            });
+            res.status(500).send("Internal server error");
         }
     }
 );
 
 app.get(
     "/feed/:id",
-    async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    async (req: Request, res: Response): Promise<void> => {
         if (!req.params.id || req.params.id === "") {
-            next(new Error("Feed ID is required"));
+            res.status(400).send("Feed ID is required");
             return;
         }
 
@@ -416,16 +422,21 @@ app.get(
 
             res.render("feed", { feed, websites, posts: postsWithWebsite });
         } catch (error: unknown) {
-            next(new Error((error as Error).message));
+            Dataset.pushData({
+                url: `/feed/${req.params.id}`,
+                context: "Error fetching feed",
+                error: (error as Error).message,
+            });
+            res.status(500).send("Internal server error");
         }
     }
 );
 
 app.get(
     "/website/:id",
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
         if (!req.params.id || req.params.id === "") {
-            next(new Error("Website ID is required"));
+            res.status(400).send("Website ID is required");
             return;
         }
 
@@ -451,16 +462,21 @@ app.get(
             });
             res.render("website", { feed, website, posts });
         } catch (error) {
-            next(new Error((error as Error).message));
+            Dataset.pushData({
+                url: "/",
+                context: "Error fetching website",
+                error: (error as Error).message,
+            });
+            res.status(500).send("Internal server error");
         }
     }
 );
 
 app.get(
     "/website/:id/wizard",
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
         if (!req.params.id || req.params.id === "") {
-            next(new Error("Website ID is required"));
+            res.status(400).send("Website ID is required");
             return;
         }
 
@@ -612,7 +628,7 @@ app.get(
 
             res.render("website-wizard", { website, feed });
         } catch (error) {
-            next(new Error((error as Error).message));
+            res.status(500).send("Website could not be crawled");
         }
     }
 );

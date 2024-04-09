@@ -374,6 +374,8 @@ html(lang="en")
             } else {
               submitButton.disabled = false
               submitButton.value = 'Error! Try again'
+
+              interval && clearInterval(interval)
             }
           })
         })
