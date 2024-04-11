@@ -3,15 +3,12 @@ import pgPromise from "pg-promise";
 // import cron from "node-cron";
 import dotenv from "dotenv";
 import {
-    // PlaywrightCrawler,
-    // ProxyConfiguration,
+    PlaywrightCrawler,
     Dataset,
-    CheerioCrawler,
 } from "crawlee";
 import * as cheerio from "cheerio";
 import { formatURL } from "./js/helpers";
 import OpenAI from "openai";
-import { log } from "console";
 
 dotenv.config();
 
@@ -281,11 +278,18 @@ const insertWebsitePosts = async (
     });
 };
 
-const crawler = new CheerioCrawler({
+const crawler = new PlaywrightCrawler({
     maxRequestRetries: 3,
-    requestHandler: async ({ $, request }) => {
+    requestHandler: async ({ page, parseWithCheerio, request }) => {
         try {
+            // wait 5 secs
+            // await page.waitForTimeout(10000);
+            await page.waitForLoadState('networkidle');
+
+            const $ = await parseWithCheerio();
+            
             const body = $("body").html() as string;
+            console.log({body})
 
             // get all link elements with rel attribute containing "icon"
             const favicon = $("link[rel*='icon']").attr("href");
@@ -675,7 +679,8 @@ app.get(
 
             res.render("website-wizard", { website, feed });
         } catch (error) {
-            res.status(500).send("Website could not be crawled");
+            console.error(error);
+            res.status(500).send(JSON.stringify(error));
         }
     }
 );
