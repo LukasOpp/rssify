@@ -288,14 +288,27 @@ const crawler = new PlaywrightCrawler({
 
             const $ = await parseWithCheerio();
             
-            const body = $("body").html() as string;
-            console.log({body})
+            const body = $("body").html();
 
             // get all link elements with rel attribute containing "icon"
             const favicon = $("link[rel*='icon']").attr("href");
             const fullFaviconPath = favicon
                 ? new URL(favicon, request.url)
                 : new URL("/favicon.ico", request.url);
+
+            const html = $("html").html() as string;
+            await db.none(
+                `UPDATE websites 
+                SET latest_html = $2, 
+                last_crawled = NOW(), 
+                favicon_url = $3
+                WHERE id = $1`,
+                [
+                    request.label,
+                    html,
+                    fullFaviconPath.href,
+                ]
+            );
 
             let selectors: WebsiteSelectors = {};
 
@@ -335,7 +348,7 @@ const crawler = new PlaywrightCrawler({
                         author_regex: website.author_regex,
                     };
                 } else {
-                    await Dataset.pushData({
+                    await Dataset.pushData({    
                         url: request.url,
                         context: "No selectors found",
                     });
@@ -344,21 +357,17 @@ const crawler = new PlaywrightCrawler({
 
             await db.none(
                 `UPDATE websites 
-            SET latest_html = $1, 
-            last_crawled = NOW(), 
-            favicon_url = $2, 
-            post_selector = $3,
-            title_selector = $4,
-            url_selector = $5,
-            content_selector = $6,
-            date_selector = $7,
-            author_selector = $8,
-            date_regex = $9,
-            author_regex = $10
-            WHERE id = $11`,
+            SET post_selector = $2,
+            title_selector = $3,
+            url_selector = $4,
+            content_selector = $5,
+            date_selector = $6,
+            author_selector = $7,
+            date_regex = $8,
+            author_regex = $9
+            WHERE id = $1`,
                 [
-                    $("html").html(),
-                    fullFaviconPath.href,
+                    request.label,
                     selectors.post_selector,
                     selectors.title_selector,
                     selectors.url_selector,
@@ -367,7 +376,6 @@ const crawler = new PlaywrightCrawler({
                     selectors.author_selector,
                     selectors.date_regex,
                     selectors.author_regex,
-                    request.label,
                 ]
             );
 
