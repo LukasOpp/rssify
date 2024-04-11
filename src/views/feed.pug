@@ -61,7 +61,7 @@ block layout-content
                 ul
                     li.post-source
                         img(src=post.website.favicon_url, alt="", style='width: 1em; height: 1em; vertical-align: middle; margin-right: .5em;')
-                        span.link #{post.website.url.split('/')[2]}
+                        p.link(style="line-break: anywhere;") #{post.website.url.split('/')[2]}
                     li.post-date
                         span=post.date
                     li.post-title

@@ -25,3 +25,7 @@ for post in posts
                 span= post.author || '-'
             li.post-content
                 span= post.content || '-'
+if newDateRegex
+    div#new-date-regex(style='display: none; aria-hidden="true";')=newDateRegex
+if newAuthorRegex
+    div#new-author-regex(style='display: none; aria-hidden="true";')=newAuthorRegex

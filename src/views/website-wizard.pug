@@ -40,26 +40,39 @@ block layout-content
                 div.instruction-color-indicator(style='background-color: purple;')
                 | Select the post author
                 button.skip-button(onclick='goToNextStep()') Skip
-        small.selection-options(style="font-size: .8em; color: #424242; margin-left: 3em;")
-            | You can select elements by clicking on them. If you need to turn off element selection to click something like a cookie banner, click 
-            span.selector-toggle.active
-                include partials/icons/inspect-icon.pug
-            |  below
+        p.selection-options(style="font-size: .8em; color: #424242; margin-left: 3em;")
+            | Tips:
+            ul(style="font-size: .8em; color: #424242;")
+                li You can select elements by clicking on them. If you need to turn off element selection to click something like a cookie banner, click 
+                    span.selector-toggle.active
+                        include partials/icons/inspect-icon.pug
+                    |  below
+                li You can add regular expressions to your selectors in the Advanced section in the website settings
     br
     div.selector-toggle.active(style="display: flex; gap: .4em; margin-left: 40px; align-items: center; width: fit-content; font-size: .8rem;")
         include partials/icons/inspect-icon.pug
         span.selector-toggle-label Element selection active
     div.wizard-selector(style='margin-left: 40px;')
-        iframe#website-renderer(srcdoc=website.latest_html, style='height: 50vh; border: none; outline: 1px solid #d1d1d1;')
-        div#post-renderer
-        div.posts
-            form#post-selectors(action=`/api/v1/website/${website.id}/wizard`, method='post', target='posts-renderer')
+        div.website-config
+            iframe#website-renderer(srcdoc=website.latest_html, style='height: 50vh; border: none; outline: 1px solid #d1d1d1;')
+            form#post-selectors(action=`/api/v1/website/${website.id}/wizard`, method='post', target='posts-renderer', oninput='updateResultingPosts()', style="display: flex; flex-direction: column;")
+                label(for='post_selector') Post selector
                 input#post_selector(type='text', name='post_selector', placeholder='CSS Post selector', autocomplete="off")
+                label(for='title_selector') Title selector
                 input#title_selector(type='text', name='title_selector', placeholder='CSS Title selector', autocomplete="off")
+                label(for='url_selector') URL selector
                 input#url_selector(type='text', name='url_selector', placeholder='CSS URL selector', autocomplete="off")
+                label(for='content_selector') Content selector
                 input#content_selector(type='text', name='content_selector', placeholder='CSS Content selector', autocomplete="off")
+                label(for='date_selector') Date selector
                 input#date_selector(type='text', name='date_selector', placeholder='CSS Date selector', autocomplete="off")
+                label(for='author_selector') Author selector
                 input#author_selector(type='text', name='author_selector', placeholder='CSS Author selector', autocomplete="off")
+                label(for='date_regex') Date regex
+                input#date_regex(type='text', name='date_regex', placeholder='Date regex', autocomplete="off")
+                label(for='author_regex') Author regex
+                input#author_regex(type='text', name='author_regex', placeholder='Author regex', autocomplete="off")
+        div#post-renderer
     script.
         let selectedElementPaths = {
             title_selector: null,
@@ -91,7 +104,7 @@ block layout-content
             currentStep = 0;
             steps[currentStep].classList.add('active');
             document.getElementById("wizard-message").innerHTML = "Say hello to the website wizard! You may have landed here because we were unable to analyse your chosen website. Please help us by following the instructions below:";
-            document.querySelectorAll(".posts input").forEach(input => input.value = '');
+            document.querySelectorAll(".website-config input").forEach(input => input.value = '');
             document.getElementById("post-renderer").innerHTML = '';
 
             document.getElementById("website-renderer").contentWindow.document.querySelectorAll('.post-selection-container').forEach(element => {
@@ -160,7 +173,7 @@ block layout-content
 
             setHoverSelectionBorderColor(currentStep);
 
-            document.querySelectorAll(".posts input")[currentStep].value = '';
+            document.querySelectorAll(".website-config input")[currentStep].value = '';
             updateResultingPosts()
         }
         function setHoverSelectionBorderColor(step) {
@@ -193,6 +206,8 @@ block layout-content
         }
 
         function updateResultingPosts() {
+            document.querySelector("#post-renderer").innerHTML = '<div class="loading-spinner"></div>';
+
             const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
             const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
 
@@ -207,6 +222,18 @@ block layout-content
                 })
                 .then(response => response.text()) // Assuming the response is text
                 .then(data => {
+                    // treat data as html and check if #new-date-regext and #new-author-regex exist
+                    const parser = new DOMParser();
+                    const htmlDocument = parser.parseFromString(data, 'text/html');
+                    const newDateRegex = htmlDocument.querySelector('#new-date-regex');
+                    const newAuthorRegex = htmlDocument.querySelector('#new-author-regex');
+
+                    if (newDateRegex) {
+                        document.getElementById('date_regex').value = newDateRegex.textContent;
+                    }
+                    if (newAuthorRegex) {
+                        document.getElementById('author_regex').value = newAuthorRegex.textContent;
+                    }
                     // Display the response in the container of your choice
                     document.getElementById('post-renderer').innerHTML = data;
                 })
@@ -388,11 +415,6 @@ block layout-content
                         // set selected element to the anchor tag
                         selectedElement = selectedElement.closest('a');
                     }
-
-                    //- if (!(selectedElement.tagName.toLowerCase() === 'a')) {
-                    //-     createWizardError("Please select an element that links to the post!");
-                    //-     return;
-                    //- }
                 } else { // 
                     // Send wizard error if the selected element does not include text
                     if (!selectedElement.innerText) {
@@ -403,17 +425,18 @@ block layout-content
 
                 // Get the selected element path
                 const postContainerElementPath = document.getElementById("post_selector").value;
-                const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep + 1].id;
+                const selectorToBeSet = document.querySelectorAll(".website-config input")[currentStep + 1].id;
 
-                if (selectorToBeSet === 'url_selector' && selectedElementPath.includes(" a")) {
-                    const indexOfA = selectedElementPath.lastIndexOf(" a");
-                    selectedElementPath = cleanSelectorPath(selectedElementPath.slice(0, indexOfA ) + "[href]");
-                }
+                //- if (selectorToBeSet === 'url_selector' && selectedElementPath.includes(" a")) {
+                //-     const indexOfA = selectedElementPath.lastIndexOf(" a");
+                //-     selectedElementPath = cleanSelectorPath(selectedElementPath.slice(0, indexOfA + 1 ) + "a[href]");
+                //- }
 
-                selectedElementPath = selectedElementPath.trim().replace(/ > /g, ' > ');
+                selectedElementPath = cleanSelectorPath(selectedElementPath);
 
                 selectedElementPaths[selectorToBeSet] = selectedElementPath
                 console.log(selectorToBeSet)
+                console.log({selectedElementPaths})
 
                 function sharedStart(array){
                     console.log({array})
@@ -425,8 +448,6 @@ block layout-content
                     return a1.substring(0, i);
                 }
 
-                //- const nonNullSelectedElements = selectedElementPaths;
-                //- const nonNullSelectedElements = Object.values(selectedElementPaths)
                 const nonNullSelectedElements = Object.fromEntries(Object.entries(selectedElementPaths).filter(([key, value]) => value).map(([key, value]) => [key, value]));
 
                 console.log({nonNullSelectedElements})
@@ -434,22 +455,23 @@ block layout-content
                 let postSelector = "";
 
                 if (Object.entries(nonNullSelectedElements).length === 1) {
-                    console.log({"fdsjfs": nonNullSelectedElements[selectorToBeSet]})
+                    //- console.log({"fdsjfs": nonNullSelectedElements[selectorToBeSet]})
                     const selectedElementParentTagName = document.getElementById("website-renderer").contentWindow.document.querySelector(nonNullSelectedElements[selectorToBeSet]).parentElement.tagName.toLowerCase();
-                    console.log({selectedElementParentTagName})
+                    //- console.log({selectedElementParentTagName})
                     const selectedElementParentPath = cleanSelectorPath(nonNullSelectedElements[selectorToBeSet].slice(0, nonNullSelectedElements[selectorToBeSet].lastIndexOf(` ${selectedElementParentTagName}`) + 1))
-                    console.log({selectedElementParentPath})
-                    console.log({["selectedElementParentPathv2"]: nonNullSelectedElements[selectorToBeSet].slice(0, nonNullSelectedElements[selectorToBeSet].lastIndexOf(` ${selectedElementParentTagName}`) + 1)})
+                    //- console.log({selectedElementParentPath})
+                    //- console.log({["selectedElementParentPathv2"]: nonNullSelectedElements[selectorToBeSet].slice(0, nonNullSelectedElements[selectorToBeSet].lastIndexOf(` ${selectedElementParentTagName}`) + 1)})
 
                     postSelector = selectedElementParentPath;
 
-                    document.querySelectorAll(".posts input")[0].value = postSelector;
-                    document.querySelectorAll(".posts input")[currentStep + 1].value = cleanSelectorPath(nonNullSelectedElements[selectorToBeSet].replace(postSelector, ''));
+                    document.querySelectorAll(".website-config input")[0].value = postSelector;
+                    document.querySelectorAll(".website-config input")[currentStep + 1].value = cleanSelectorPath(nonNullSelectedElements[selectorToBeSet].replace(postSelector, ''));
                 } else {
                     const greatestCommonStartSubstring = cleanSelectorPath(sharedStart(Object.values(nonNullSelectedElements)));
 
 
                     // select parent if greatestCommonStartSubstring the same length as all nonNullSelectedElements
+                    //- let selectParent = false && Object.values(nonNullSelectedElements).every(el => el.length === greatestCommonStartSubstring.length);
                     let selectParent = Object.values(nonNullSelectedElements).every(el => el.length === greatestCommonStartSubstring.length);
 
                     if (selectParent) {
@@ -461,19 +483,24 @@ block layout-content
                     } else {
                         postSelector = greatestCommonStartSubstring;
                     }
+
+                    document.querySelectorAll(".website-config input")[0].value = postSelector;
                     
                     Object.entries(nonNullSelectedElements).map(([key, value]) => {
+                        console.log("mapping relative selector:")
+                        console.log({key, value})
                         if (!value) return;
+                        console.log("removing postselector:", {postSelector: postSelector, after: value.replace(postSelector, ''), clean: cleanSelectorPath(value.replace(postSelector, ''))})
                         let newRelativeSelector = cleanSelectorPath(value.replace(postSelector, ''));
-                        if (newRelativeSelector.startsWith('> ')) {
-                            newRelativeSelector = newRelativeSelector.slice(2);
-                        }
-                        document.querySelector(`.posts input#${key}`).value = newRelativeSelector;
+                        //- if (newRelativeSelector.startsWith('> ')) {
+                        //-     newRelativeSelector = newRelativeSelector.slice(2);
+                        //- }
+                        document.querySelector(`.website-config input#${key}`).value = newRelativeSelector;
                     });
 
                     //- console.log({newRelativeSelectorPathsWithoutPostSelector})
 
-                    //- document.querySelectorAll(".posts input").forEach(input => {
+                    //- document.querySelectorAll(".website-config input").forEach(input => {
                     //-     if (input.id === "post_selector") {
                     //-         input.value = postSelector
                     //-     } else {
@@ -500,11 +527,11 @@ block layout-content
 
                 
 
-                //- document.querySelectorAll(".posts input")[1].value = fullSelectorPaths['title_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".posts input")[2].value = fullSelectorPaths['url_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".posts input")[3].value = fullSelectorPaths['content_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".posts input")[4].value = fullSelectorPaths['date_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".posts input")[5].value = fullSelectorPaths['author_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".website-config input")[1].value = fullSelectorPaths['title_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".website-config input")[2].value = fullSelectorPaths['url_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".website-config input")[3].value = fullSelectorPaths['content_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".website-config input")[4].value = fullSelectorPaths['date_selector'].replace(greatestCommonSubstring, '');
+                //- document.querySelectorAll(".website-config input")[5].value = fullSelectorPaths['author_selector'].replace(greatestCommonSubstring, '');
 
                 
                 //- let selectedElementPathFromPostToParent = selectedElementPath.replace(postContainerElementPath, '').split(' ')
@@ -518,7 +545,7 @@ block layout-content
                 //- }).join(' > ');
 
                 // If the element is an anchor tag, add the href attribute
-                //- const selectorToBeSet = document.querySelectorAll(".posts input")[currentStep];
+                //- const selectorToBeSet = document.querySelectorAll(".website-config input")[currentStep];
                 //- if (selectorToBeSet.id === "url_selector" && selectedElementPathFromPostToParent.includes("a")) {
                 //-     const indexOfA = selectedElementPathFromPostToParent.indexOf("a");
                 //-     selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.slice(0, indexOfA + 1) + "[href]";
@@ -529,7 +556,7 @@ block layout-content
 
                 
                 // Set the value of the input field
-                //- document.querySelectorAll(".posts input")[currentStep].value = selectedElementPathFromPostToParent;
+                //- document.querySelectorAll(".website-config input")[currentStep].value = selectedElementPathFromPostToParent;
 
                 goToNextStep();
 

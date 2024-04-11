@@ -96,12 +96,8 @@ const openai = new OpenAI({
 
 const getDataForSelector = (
     parent: cheerio.Cheerio<cheerio.Element>,
-    selector: string | undefined
+    selector: string
 ): string | undefined => {
-    if (!selector) {
-        return undefined;
-    }
-
     const attribute = selector.match(/.*\[(.*?)\]/)?.[1];
     const selectorWithoutAttribute = selector.replace(/\[.*\]/, "");
 
@@ -111,6 +107,77 @@ const getDataForSelector = (
         return parent.find(selector).first().text();
     }
 };
+
+const parseSelectorsFromLLM = (responseStringWithPotentialJson: string) => {
+    try {
+        const indexOfJSONOpening = responseStringWithPotentialJson.indexOf("{");
+        const indexOfJSONClosing = responseStringWithPotentialJson.lastIndexOf("}");
+        
+        const potentialJson = responseStringWithPotentialJson.slice(indexOfJSONOpening, indexOfJSONClosing + 1);
+        if (!potentialJson) {
+            throw new Error("No JSON found in OpenAI response");
+        }
+        const answerJson = JSON.parse(potentialJson);
+
+        return {
+            post_selector: answerJson.post_selector,
+            title_selector: answerJson.title_selector,
+            url_selector: answerJson.url_selector,
+            content_selector: answerJson.content_selector,
+            date_selector: answerJson.date_selector,
+            author_selector: answerJson.author_selector,
+            date_regex: answerJson.date_regex,
+            author_regex: answerJson.author_regex,
+        };
+    } catch (error) {
+        console.error({
+            context: "OpenAI response",
+            error: JSON.stringify(error),
+            answer: responseStringWithPotentialJson,
+        });
+    }
+
+    return {};
+}
+
+const getLLMRegexSuggestion = async (
+    $: cheerio.CheerioAPI,
+    postSelector: string,
+    currentSelectorType: 'date' | 'author',
+    currentSelector: string,
+): Promise<string | null> => {
+    const postElement = $(postSelector) as cheerio.Cheerio<cheerio.Element>;
+
+    try {
+        const selectedText = getDataForSelector(postElement, currentSelector);
+    
+        if (!selectedText) {
+            throw new Error("No text found for selected element");
+        }
+
+        const answer = await openai.chat.completions.create({
+            model: "gpt-4-turbo-preview",
+            messages: [
+                {
+                    content: `give me a regex that would match the ${currentSelectorType} in matching group 1 instead of matching group 0 in the following text, but respond to me only as a JSON with keys "date_regex" or "author_regex":\n\n"${selectedText}"`,
+                    role: "system",
+                },
+            ],
+        });
+
+        if (!answer.choices[0].message.content) {
+            throw new Error(JSON.stringify(answer));
+        }
+
+        const regex = parseSelectorsFromLLM(answer.choices[0].message.content)[`${currentSelectorType}_regex`];
+
+        return regex;
+    } catch (error) {
+        console.error(error);
+    }
+
+    return null;
+}
 
 const getPostDataForSelectors = async (
     $: cheerio.CheerioAPI,
@@ -122,25 +189,26 @@ const getPostDataForSelectors = async (
     const posts: Post[] = postContainers
         .map((i, postContainer) => {
             const postElement = $(postContainer);
-            const title = getDataForSelector(
+            const title = selectors.title_selector ? getDataForSelector(
                 postElement,
                 selectors.title_selector
-            );
-            let url = getDataForSelector(postElement, selectors.url_selector);
+            ) : undefined;
+            let url = selectors.url_selector ? getDataForSelector(postElement, selectors.url_selector) : undefined;
 
             if (url && !url.startsWith("http")) {
                 const baseUrl = new URL(origin);
                 url = new URL(url, baseUrl).href;
             }
-            const content = getDataForSelector(
+            const content = selectors.content_selector ? getDataForSelector(
                 postElement,
                 selectors.content_selector
-            );
+            ) : undefined;
 
-            let date = getDataForSelector(postElement, selectors.date_selector);
+            let date = selectors.date_selector ? getDataForSelector(postElement, selectors.date_selector) : undefined;
             if (date) {
                 if (selectors.date_regex) {
-                    const regex = new RegExp(selectors.date_regex);
+                    date = date.replace(/\n/g, '');
+                    const regex = new RegExp(selectors.date_regex, 'm');
                     const match = date.match(regex);
                     if (match) {
                         date = match[1];
@@ -154,12 +222,14 @@ const getPostDataForSelectors = async (
                 }
             }
 
-            let author = getDataForSelector(
+            let author = selectors.author_selector ? getDataForSelector(
                 postElement,
                 selectors.author_selector
-            );
+            ) : undefined;
             if (author && selectors.author_regex) {
-                const regex = new RegExp(selectors.author_regex);
+                // filter out newlines from author
+                author = author.replace(/\n/g, '');
+                const regex = new RegExp(selectors.author_regex, 'm');
                 const match = author.match(regex);
                 if (match) {
                     author = match[1];
@@ -233,38 +303,11 @@ const crawler = new CheerioCrawler({
                     ],
                 });
 
-                if (answer.choices[0].message.content) {
-                    try {
-                        const potentialJson =
-                            answer.choices[0].message.content.match(
-                                /\{[^}]*\}/
-                            )?.[0];
-                        if (!potentialJson) {
-                            throw new Error("No JSON found in OpenAI response");
-                        }
-                        const answerJson = JSON.parse(potentialJson);
-
-                        selectors = {
-                            post_selector: answerJson.post_selector,
-                            title_selector: answerJson.title_selector,
-                            url_selector: answerJson.url_selector,
-                            content_selector: answerJson.content_selector,
-                            date_selector: answerJson.date_selector,
-                            author_selector: answerJson.author_selector,
-                            date_regex: answerJson.date_regex,
-                            author_regex: answerJson.author_regex,
-                        };
-                    } catch (error) {
-                        await Dataset.pushData({
-                            url: request.url,
-                            context: "OpenAI response",
-                            error: JSON.stringify(error),
-                            answer: JSON.stringify(
-                                answer.choices[0].message.content
-                            ),
-                        });
-                    }
+                if (!answer.choices[0].message.content) {
+                    throw new Error(JSON.stringify(answer));
                 }
+
+                selectors = parseSelectorsFromLLM(answer.choices[0].message.content);
             } else if (request.userData.selectors) {
                 selectors = request.userData.selectors;
             } else {
@@ -291,6 +334,7 @@ const crawler = new CheerioCrawler({
                     });
                 }
             }
+
             await db.none(
                 `UPDATE websites 
             SET latest_html = $1, 
@@ -724,6 +768,34 @@ app.post(
                     selectors,
                     website.url
                 );
+
+                // let llm suggest regex for date if date selector is present but posts have no date
+                if (date_selector && posts.every(post => !post.date)) {
+                    const regex = await getLLMRegexSuggestion($, post_selector, 'date', date_selector);
+                    if (regex) {
+                        selectors.date_regex = regex;
+                    }
+
+                    posts = await getPostDataForSelectors(
+                        $,
+                        selectors,
+                        website.url
+                    );
+                }
+
+                // let llm suggest regex for author if author selector is present but posts have no author
+                if (author_selector && posts.every(post => !post.author)) {
+                    const regex = await getLLMRegexSuggestion($, post_selector, 'author', author_selector);
+                    if (regex) {
+                        selectors.author_regex = regex;
+                    }
+
+                    posts = await getPostDataForSelectors(
+                        $,
+                        selectors,
+                        website.url
+                    );
+                }
             } catch (error) {
                 console.error(error);
                 res.status(500).send("Syntax error in selectors");
@@ -743,7 +815,7 @@ app.post(
                 }
             });
 
-            res.render("partials/posts/website-post-list", { website, posts });
+            res.render("partials/posts/website-post-list", { website, posts, newDateRegex: selectors.date_regex, newAuthorRegex: selectors.author_regex});
         } catch (error) {
             console.error(error);
             res.status(500).send("Server error");
