@@ -209,6 +209,12 @@ block layout-content
             document.querySelector("#post-renderer").innerHTML = '<div class="loading-spinner"></div>';
 
             const postSelectors = Object.fromEntries(new FormData(document.getElementById('post-selectors')))
+
+            if (Object.values(postSelectors).every(value => !value)) {
+                document.querySelector("#post-renderer").innerHTML = '';
+                return;
+            }
+
             const websiteIdRegex = window.location.href.match(/website\/(.*?)\//);
 
             if (websiteIdRegex) {
@@ -291,7 +297,7 @@ block layout-content
         // Make wizard steps clickable
         steps.forEach(step => {
             step.addEventListener('click', (e) => {
-                if (e.target.classList.contains('selectable')) {
+                if (e.target.classList.contains('selectable') && !e.target.classList.contains('active')) {
                     const index = Array.from(steps).indexOf(e.target);
 
                     if (currentStep > -1 && currentStep < steps.length - 1) steps[currentStep].classList.remove('active');
@@ -300,7 +306,7 @@ block layout-content
                         restart();
                     }
                     
-                    goToStep(index);
+                    goToStep(index + 1);
                     steps[currentStep].classList.add('active');
 
                     document.getElementById("website-renderer").contentWindow.document.querySelectorAll(`.${selectionClassNames[currentStep]}`).forEach(element => {
@@ -380,7 +386,6 @@ block layout-content
                 //-     selectedElementPath = 'html ' + selectedElementPath;
                 //- }
 
-                console.log({selectedElementPath})
                 let selectedElement = document.getElementById("website-renderer").contentWindow.document.querySelector(selectedElementPath)
 
                 selectedElement.classList.add(selectionClassNames[currentStep]);
@@ -427,19 +432,12 @@ block layout-content
                 const postContainerElementPath = document.getElementById("post_selector").value;
                 const selectorToBeSet = document.querySelectorAll(".website-config input")[currentStep + 1].id;
 
-                //- if (selectorToBeSet === 'url_selector' && selectedElementPath.includes(" a")) {
-                //-     const indexOfA = selectedElementPath.lastIndexOf(" a");
-                //-     selectedElementPath = cleanSelectorPath(selectedElementPath.slice(0, indexOfA + 1 ) + "a[href]");
-                //- }
-
                 selectedElementPath = cleanSelectorPath(selectedElementPath);
 
+
                 selectedElementPaths[selectorToBeSet] = selectedElementPath
-                console.log(selectorToBeSet)
-                console.log({selectedElementPaths})
 
                 function sharedStart(array){
-                    console.log({array})
                     if (array.length === 0) return '';
                     if (array.length === 1) return array[0];
                     var A= array.filter(el=>el).concat().sort(), 
@@ -450,17 +448,11 @@ block layout-content
 
                 const nonNullSelectedElements = Object.fromEntries(Object.entries(selectedElementPaths).filter(([key, value]) => value).map(([key, value]) => [key, value]));
 
-                console.log({nonNullSelectedElements})
-
                 let postSelector = "";
 
                 if (Object.entries(nonNullSelectedElements).length === 1) {
-                    //- console.log({"fdsjfs": nonNullSelectedElements[selectorToBeSet]})
                     const selectedElementParentTagName = document.getElementById("website-renderer").contentWindow.document.querySelector(nonNullSelectedElements[selectorToBeSet]).parentElement.tagName.toLowerCase();
-                    //- console.log({selectedElementParentTagName})
                     const selectedElementParentPath = cleanSelectorPath(nonNullSelectedElements[selectorToBeSet].slice(0, nonNullSelectedElements[selectorToBeSet].lastIndexOf(` ${selectedElementParentTagName}`) + 1))
-                    //- console.log({selectedElementParentPath})
-                    //- console.log({["selectedElementParentPathv2"]: nonNullSelectedElements[selectorToBeSet].slice(0, nonNullSelectedElements[selectorToBeSet].lastIndexOf(` ${selectedElementParentTagName}`) + 1)})
 
                     postSelector = selectedElementParentPath;
 
@@ -471,14 +463,11 @@ block layout-content
 
 
                     // select parent if greatestCommonStartSubstring the same length as all nonNullSelectedElements
-                    //- let selectParent = false && Object.values(nonNullSelectedElements).every(el => el.length === greatestCommonStartSubstring.length);
                     let selectParent = Object.values(nonNullSelectedElements).every(el => el.length === greatestCommonStartSubstring.length);
 
                     if (selectParent) {
-                        console.log({greatestCommonStartSubstring})
                         const greatestCommonParentTagName = document.getElementById("website-renderer").contentWindow.document.querySelector(greatestCommonStartSubstring).parentElement.tagName.toLowerCase();
                         const greatestCommonParentPath = greatestCommonStartSubstring.slice(0, greatestCommonStartSubstring.lastIndexOf(` ${greatestCommonParentTagName}`)) + ` ${greatestCommonParentTagName}`
-                        console.log({greatestCommonStartSubstring, greatestCommonParentTagName, greatestCommonParentPath})
                         postSelector = greatestCommonParentPath;
                     } else {
                         postSelector = greatestCommonStartSubstring;
@@ -487,81 +476,19 @@ block layout-content
                     document.querySelectorAll(".website-config input")[0].value = postSelector;
                     
                     Object.entries(nonNullSelectedElements).map(([key, value]) => {
-                        console.log("mapping relative selector:")
-                        console.log({key, value})
                         if (!value) return;
-                        console.log("removing postselector:", {postSelector: postSelector, after: value.replace(postSelector, ''), clean: cleanSelectorPath(value.replace(postSelector, ''))})
                         let newRelativeSelector = cleanSelectorPath(value.replace(postSelector, ''));
-                        //- if (newRelativeSelector.startsWith('> ')) {
-                        //-     newRelativeSelector = newRelativeSelector.slice(2);
-                        //- }
+                        if (key === 'url_selector' && newRelativeSelector.includes(" a")) {
+                            const indexOfA = newRelativeSelector.lastIndexOf(" a");
+                            newRelativeSelector = cleanSelectorPath(newRelativeSelector.slice(0, indexOfA + 1 ) + "a[href]");
+                        }
                         document.querySelector(`.website-config input#${key}`).value = newRelativeSelector;
                     });
-
-                    //- console.log({newRelativeSelectorPathsWithoutPostSelector})
-
-                    //- document.querySelectorAll(".website-config input").forEach(input => {
-                    //-     if (input.id === "post_selector") {
-                    //-         input.value = postSelector
-                    //-     } else {
-                    //-         input.value = newRelativeSelectorPathsWithoutPostSelector[i - 1];
-                    //-     }
-                    //- });
                 }
-
-                
-
-                //- const newRelativeSelectorPathsWithoutPostSelector = Object.fromEntries(Object.entries(fullSelectorPaths).slice(1).map(([key, value]) => {
-                //-     let newRelativeSelector = value.replace(greatestSharedStartingSubstring, '');
-                //-     console.log({[key]: value})
-
-                    //- if (key === 'url_selector' && newRelativeSelector.includes("a")) {
-                    //-     const indexOfA = newRelativeSelector.indexOf("a");
-                    //-     newRelativeSelector = newRelativeSelector.slice(0, indexOfA + 1) + "[href]";
-                    //- }
-
-                    //- newRelativeSelector = newRelativeSelector.trim().replace(/ > /g, ' > ');
-
-                //-     return [key, newRelativeSelector];
-                //- }));
-
-                
-
-                //- document.querySelectorAll(".website-config input")[1].value = fullSelectorPaths['title_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".website-config input")[2].value = fullSelectorPaths['url_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".website-config input")[3].value = fullSelectorPaths['content_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".website-config input")[4].value = fullSelectorPaths['date_selector'].replace(greatestCommonSubstring, '');
-                //- document.querySelectorAll(".website-config input")[5].value = fullSelectorPaths['author_selector'].replace(greatestCommonSubstring, '');
-
-                
-                //- let selectedElementPathFromPostToParent = selectedElementPath.replace(postContainerElementPath, '').split(' ')
-                //- selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.map((element, i) => {
-                //-     const isLastSelector = i === selectedElementPathFromPostToParent.length - 1;
-                //-     if (!isLastSelector) {
-                //-         // remove id or class and everything following it
-                //-         element = element.replace(/[#.].*$/, '');
-                //-     }
-                //-     return element;
-                //- }).join(' > ');
-
-                // If the element is an anchor tag, add the href attribute
-                //- const selectorToBeSet = document.querySelectorAll(".website-config input")[currentStep];
-                //- if (selectorToBeSet.id === "url_selector" && selectedElementPathFromPostToParent.includes("a")) {
-                //-     const indexOfA = selectedElementPathFromPostToParent.indexOf("a");
-                //-     selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.slice(0, indexOfA + 1) + "[href]";
-                //- }
-
-                // Fix trailing spaces and > characters
-                //- selectedElementPathFromPostToParent = selectedElementPathFromPostToParent.trim().replace(/ > /g, ' > ');
-
-                
-                // Set the value of the input field
-                //- document.querySelectorAll(".website-config input")[currentStep].value = selectedElementPathFromPostToParent;
 
                 goToNextStep();
 
                 updateResultingPosts();
-
             }
         }, false);
 

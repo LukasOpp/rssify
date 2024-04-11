@@ -235,6 +235,9 @@ const getPostDataForSelectors = async (
                     author = match[1];
                 }
             }
+            if (!(title || url || content || date || author)) {
+                return null;
+            }
 
             return {
                 title,
@@ -580,9 +583,9 @@ app.get(
                             //     return element.tagName.toLowerCase() + nthChild;
                             // }
 
-                            if (element.className) {
-                                return element.tagName.toLowerCase() + "." + element.className.trim().split(" ").join(".");
-                            }
+                            // if (element.className) {
+                            //     return element.tagName.toLowerCase() + "." + element.className.trim().split(" ").join(".");
+                            // }
                             if (element.tagName 
                                 && element.tagName.toLowerCase() !== "html" 
                                 && element.tagName.toLowerCase() !== "head" 
@@ -987,6 +990,8 @@ app.post(
         }
     }
 );
+
+new Date().toLocaleDateString()
 
 // cron.schedule("*/10 * * * *", async () => {
 //     console.log("Running cron job every 10 minutes");

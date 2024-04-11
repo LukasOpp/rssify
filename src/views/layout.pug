@@ -298,6 +298,15 @@ html(lang="en")
         font-style: italic;
         font-size: 1.1em;
       }
+      .post-content {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box !important;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 10;
+        margin-top: .4em;
+        margin-bottom: .7em;
+      }
 
       @keyframes spin {
         to {
