@@ -311,10 +311,10 @@ const crawler = new PlaywrightCrawler({
                 });
 
                 if (!answer.choices[0].message.content) {
-                    throw new Error(JSON.stringify(answer));
+                    console.error(JSON.stringify(answer));
+                } else {
+                    selectors = parseSelectorsFromLLM(answer.choices[0].message.content);
                 }
-
-                selectors = parseSelectorsFromLLM(answer.choices[0].message.content);
             } else if (request.userData.selectors) {
                 selectors = request.userData.selectors;
             } else {
