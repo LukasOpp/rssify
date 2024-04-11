@@ -368,6 +368,7 @@ block layout-content
         // React to selected elements
         window.addEventListener('message', (e) => {
             if (!e.origin === window.location.origin) return;
+            if (!blockClickEvents) return;
 
             //- if (e.data.wizardError === WIZARD_ERRORS.SELECTION_OUTSIDE_PARENT) {
             //-     createWizardError("Please select an element inside the post!");
