@@ -8,9 +8,16 @@ FROM apify/actor-node-playwright-chrome:20 AS builder
 # to speed up the build using Docker layer cache.
 COPY --chown=myuser package*.json ./
 
-# Install all dependencies. Don't audit to speed up the installation.
-RUN npm install --include=dev --audit=false
-
+# Install default dependencies, print versions of everything
+RUN npm --quiet set progress=false \
+	&& npm config --global set update-notifier false \
+	&& npm install --omit=dev --omit=optional --no-package-lock --prefer-online \
+	&& echo "Installed NPM packages:" \
+	&& (npm list --omit=dev --omit=optional || true) \
+	&& echo "Node.js version:" \
+	&& node --version \
+	&& echo "NPM version:" \
+	&& npm --version
 # Next, copy the source files using the user set
 # in the base image.
 COPY --chown=myuser . ./
