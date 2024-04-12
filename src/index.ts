@@ -3,8 +3,8 @@ import pgPromise from "pg-promise";
 // import cron from "node-cron";
 import dotenv from "dotenv";
 import {
+    PlaywrightCrawler,
     Dataset,
-    CheerioCrawler,
 } from "crawlee";
 import * as cheerio from "cheerio";
 import { formatURL } from "./js/helpers";
@@ -278,12 +278,16 @@ const insertWebsitePosts = async (
     });
 };
 
-const crawler = new CheerioCrawler({
+const crawler = new PlaywrightCrawler({
     maxRequestRetries: 3,
-    requestHandler: async ({ $, request }) => {
+    requestHandler: async ({ page, parseWithCheerio, request }) => {
         try {
             // wait 5 secs
             // await page.waitForTimeout(10000);
+            await page.waitForLoadState('networkidle');
+
+            const $ = await parseWithCheerio();
+            
             const body = $("body").html();
 
             // get all link elements with rel attribute containing "icon"
