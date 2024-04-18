@@ -173,7 +173,7 @@ block layout-content
 
             setHoverSelectionBorderColor(currentStep);
 
-            document.querySelectorAll(".website-config input")[currentStep].value = '';
+            document.querySelectorAll(".website-config input")[currentStep + 1].value = '';
             updateResultingPosts()
         }
         function setHoverSelectionBorderColor(step) {
@@ -300,13 +300,13 @@ block layout-content
                 if (e.target.classList.contains('selectable') && !e.target.classList.contains('active')) {
                     const index = Array.from(steps).indexOf(e.target);
 
-                    if (currentStep > -1 && currentStep < steps.length - 1) steps[currentStep].classList.remove('active');
+                    if (currentStep >= 0 && currentStep < steps.length - 1) steps[currentStep].classList.remove('active');
 
                     if (index === 0) {
                         restart();
                     }
                     
-                    goToStep(index + 1);
+                    goToStep(index);
                     steps[currentStep].classList.add('active');
 
                     document.getElementById("website-renderer").contentWindow.document.querySelectorAll(`.${selectionClassNames[currentStep]}`).forEach(element => {
