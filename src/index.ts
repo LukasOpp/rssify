@@ -389,10 +389,7 @@ const crawler = new CheerioCrawler({
                 await insertWebsitePosts(posts, request.label);
             }
         } catch (error) {
-            Dataset.pushData({
-                url: request.url,
-                context: JSON.stringify(error),
-            });
+            console.error(error);
         }
     },
 });
@@ -423,11 +420,7 @@ app.get(
             const feeds: Feed[] = await db.any("SELECT * FROM feeds");
             res.render("index", { feeds });
         } catch (error: unknown) {
-            Dataset.pushData({
-                url: "/",
-                context: "Error fetching feeds",
-                error: (error as Error).message,
-            });
+            console.error(error);
             res.status(500).send("Internal server error");
         }
     }
@@ -477,11 +470,7 @@ app.get(
 
             res.render("feed", { feed, websites, posts: postsWithWebsite });
         } catch (error: unknown) {
-            Dataset.pushData({
-                url: `/feed/${req.params.id}`,
-                context: "Error fetching feed",
-                error: (error as Error).message,
-            });
+            console.error(error);
             res.status(500).send("Internal server error");
         }
     }
@@ -517,11 +506,7 @@ app.get(
             });
             res.render("website", { feed, website, posts });
         } catch (error) {
-            Dataset.pushData({
-                url: "/",
-                context: "Error fetching website",
-                error: (error as Error).message,
-            });
+            console.error(error);
             res.status(500).send("Internal server error");
         }
     }
