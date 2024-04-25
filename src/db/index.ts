@@ -35,12 +35,12 @@ export const db = pgp({
 
 export const insertWebsitePosts = async (
     posts: Post[],
-    websiteId: string
+    websiteId: string,
 ): Promise<void> => {
     return new Promise((resolve, reject) => {
         const cs = new pgp.helpers.ColumnSet(
             ["website_id", "title", "url", "content", "date", "author"],
-            { table: "posts" }
+            { table: "posts" },
         );
 
         const postsWithWebsiteId = posts.map((post) => {

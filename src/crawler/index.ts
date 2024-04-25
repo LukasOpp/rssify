@@ -1,7 +1,4 @@
-import {
-    Dataset,
-    CheerioCrawler,
-} from "crawlee";
+import { Dataset, CheerioCrawler } from "crawlee";
 
 import { db } from "../db";
 import { type Website, WebsiteSelectors } from "../types";
@@ -30,11 +27,7 @@ export const crawler = new CheerioCrawler({
                 last_crawled = NOW(), 
                 favicon_url = $3
                 WHERE id = $1`,
-                [
-                    request.label,
-                    html,
-                    fullFaviconPath.href,
-                ]
+                [request.label, html, fullFaviconPath.href],
             );
 
             let selectors: WebsiteSelectors = {};
@@ -50,7 +43,7 @@ export const crawler = new CheerioCrawler({
             } else {
                 const website: Website = await db.one(
                     "SELECT * FROM websites WHERE id = $1",
-                    [request.label]
+                    [request.label],
                 );
 
                 if (website) {
@@ -65,7 +58,7 @@ export const crawler = new CheerioCrawler({
                         author_regex: website.author_regex,
                     };
                 } else {
-                    await Dataset.pushData({    
+                    await Dataset.pushData({
                         url: request.url,
                         context: "No selectors found",
                     });
@@ -93,14 +86,14 @@ export const crawler = new CheerioCrawler({
                     selectors.author_selector,
                     selectors.date_regex,
                     selectors.author_regex,
-                ]
+                ],
             );
 
             if (selectors && Object.keys(selectors).length > 0) {
                 const posts = await getPostDataForSelectors(
                     $,
                     selectors,
-                    request.url
+                    request.url,
                 );
 
                 if (!request.label) {

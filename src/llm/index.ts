@@ -11,12 +11,18 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const parseSelectorsFromLLM = (responseStringWithPotentialJson: string) => {
+export const parseSelectorsFromLLM = (
+    responseStringWithPotentialJson: string,
+) => {
     try {
         const indexOfJSONOpening = responseStringWithPotentialJson.indexOf("{");
-        const indexOfJSONClosing = responseStringWithPotentialJson.lastIndexOf("}");
-        
-        const potentialJson = responseStringWithPotentialJson.slice(indexOfJSONOpening, indexOfJSONClosing + 1);
+        const indexOfJSONClosing =
+            responseStringWithPotentialJson.lastIndexOf("}");
+
+        const potentialJson = responseStringWithPotentialJson.slice(
+            indexOfJSONOpening,
+            indexOfJSONClosing + 1,
+        );
         if (!potentialJson) {
             throw new Error("No JSON found in OpenAI response");
         }
@@ -41,19 +47,19 @@ export const parseSelectorsFromLLM = (responseStringWithPotentialJson: string) =
     }
 
     return {};
-}
+};
 
 export const getLLMRegexSuggestion = async (
     $: cheerio.CheerioAPI,
     postSelector: string,
-    currentSelectorType: 'date' | 'author',
+    currentSelectorType: "date" | "author",
     currentSelector: string,
 ): Promise<string | null> => {
     const postElement = $(postSelector) as cheerio.Cheerio<cheerio.Element>;
 
     try {
         const selectedText = getDataForSelector(postElement, currentSelector);
-    
+
         if (!selectedText) {
             throw new Error("No text found for selected element");
         }
@@ -72,7 +78,9 @@ export const getLLMRegexSuggestion = async (
             throw new Error(JSON.stringify(answer));
         }
 
-        const regex = parseSelectorsFromLLM(answer.choices[0].message.content)[`${currentSelectorType}_regex`];
+        const regex = parseSelectorsFromLLM(answer.choices[0].message.content)[
+            `${currentSelectorType}_regex`
+        ];
 
         return regex;
     } catch (error) {
@@ -80,7 +88,7 @@ export const getLLMRegexSuggestion = async (
     }
 
     return null;
-}
+};
 
 export const getLLMSelectors = async (
     body: string,

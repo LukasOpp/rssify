@@ -8,18 +8,15 @@ import { preferredDateFormatting } from "../../util/date";
 
 const pageRouter = Router();
 
-pageRouter.get(
-    "/",
-    async (req: Request, res: Response): Promise<void> => {
-        try {
-            const feeds: Feed[] = await db.any("SELECT * FROM feeds");
-            res.render("index", { feeds });
-        } catch (error: unknown) {
-            console.error(error);
-            res.status(500).send("Internal server error");
-        }
+pageRouter.get("/", async (req: Request, res: Response): Promise<void> => {
+    try {
+        const feeds: Feed[] = await db.any("SELECT * FROM feeds");
+        res.render("index", { feeds });
+    } catch (error: unknown) {
+        console.error(error);
+        res.status(500).send("Internal server error");
     }
-);
+});
 
 pageRouter.get(
     "/feed/:id",
@@ -32,30 +29,30 @@ pageRouter.get(
         try {
             const feed: Feed = await db.one(
                 "SELECT * FROM feeds WHERE id = $1",
-                [req.params.id]
+                [req.params.id],
             );
             const websites: Website[] = await db.any(
                 "SELECT * FROM websites WHERE feed_id = $1",
-                [feed.id]
+                [feed.id],
             );
             const posts: Post[] = websites.length
                 ? await db.any(
                       "SELECT * FROM posts WHERE website_id IN ($1:csv) ORDER BY date DESC NULLS LAST",
-                      [websites.map((website) => website.id)]
+                      [websites.map((website) => website.id)],
                   )
                 : [];
 
             posts.forEach((post) => {
                 if (post.date) {
                     post.date = preferredDateFormatting.format(
-                        new Date(post.date)
+                        new Date(post.date),
                     );
                 }
             });
 
             const postsWithWebsite = posts.map((post) => {
                 const website = websites.find(
-                    (website) => website.id === post.website_id
+                    (website) => website.id === post.website_id,
                 );
                 return {
                     ...post,
@@ -68,65 +65,56 @@ pageRouter.get(
             console.error(error);
             res.status(500).send("Internal server error");
         }
-    }
+    },
 );
 
-pageRouter.get(
-    "/website/:id",
-    async (req: Request, res: Response) => {
-        if (!req.params.id || req.params.id === "") {
-            res.status(400).send("Website ID is required");
-            return;
-        }
-
-        try {
-            const website: Website = await db.one(
-                "SELECT * FROM websites WHERE id = $1",
-                [req.params.id]
-            );
-            const feed: Feed = await db.one(
-                "SELECT * FROM feeds WHERE id = $1",
-                [website.feed_id]
-            );
-            const posts: Post[] = await db.any(
-                "SELECT * FROM posts WHERE website_id = $1",
-                [website.id]
-            );
-            posts.forEach((post) => {
-                if (post.date) {
-                    post.date = preferredDateFormatting.format(
-                        new Date(post.date)
-                    );
-                }
-            });
-            res.render("website", { feed, website, posts });
-        } catch (error) {
-            console.error(error);
-            res.status(500).send("Internal server error");
-        }
+pageRouter.get("/website/:id", async (req: Request, res: Response) => {
+    if (!req.params.id || req.params.id === "") {
+        res.status(400).send("Website ID is required");
+        return;
     }
-);
 
-pageRouter.get(
-    "/website/:id/wizard",
-    async (req: Request, res: Response) => {
-        if (!req.params.id || req.params.id === "") {
-            res.status(400).send("Website ID is required");
-            return;
-        }
+    try {
+        const website: Website = await db.one(
+            "SELECT * FROM websites WHERE id = $1",
+            [req.params.id],
+        );
+        const feed: Feed = await db.one("SELECT * FROM feeds WHERE id = $1", [
+            website.feed_id,
+        ]);
+        const posts: Post[] = await db.any(
+            "SELECT * FROM posts WHERE website_id = $1",
+            [website.id],
+        );
+        posts.forEach((post) => {
+            if (post.date) {
+                post.date = preferredDateFormatting.format(new Date(post.date));
+            }
+        });
+        res.render("website", { feed, website, posts });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Internal server error");
+    }
+});
 
-        try {
-            const website: Website = await db.one(
-                "SELECT * FROM websites WHERE id = $1",
-                [req.params.id]
-            );
+pageRouter.get("/website/:id/wizard", async (req: Request, res: Response) => {
+    if (!req.params.id || req.params.id === "") {
+        res.status(400).send("Website ID is required");
+        return;
+    }
 
-            const feed: Feed = await db.one(
-                "SELECT * FROM feeds WHERE id = $1",
-                [website.feed_id]
-            );
+    try {
+        const website: Website = await db.one(
+            "SELECT * FROM websites WHERE id = $1",
+            [req.params.id],
+        );
 
-            const wizardCodeInject = `
+        const feed: Feed = await db.one("SELECT * FROM feeds WHERE id = $1", [
+            website.feed_id,
+        ]);
+
+        const wizardCodeInject = `
             <script>
                 let blockClickEvents = true;
 
@@ -235,38 +223,37 @@ pageRouter.get(
             </style>
             `;
 
-            if (!website.latest_html) {
-                throw new Error("No HTML found for website");
-            }
-
-            // Inject the wizard code into the HTML
-            website.latest_html = website.latest_html?.replace(
-                "</head>",
-                `${wizardCodeInject}</head>`
-            );
-
-            // fix relative URLs
-            const $ = cheerio.load(website.latest_html);
-            const base = new URL(website.url);
-            $("*").each((i, el) => {
-                const href = $(el).attr("href");
-                if (href && !href.startsWith("http")) {
-                    $(el).attr("href", new URL(href, base).href);
-                }
-                const src = $(el).attr("src");
-                if (src && !src.startsWith("http")) {
-                    $(el).attr("src", new URL(src, base).href);
-                }
-            });
-
-            website.latest_html = $.html();
-
-            res.render("website-wizard", { website, feed });
-        } catch (error) {
-            console.error(error);
-            res.status(500).send(JSON.stringify(error));
+        if (!website.latest_html) {
+            throw new Error("No HTML found for website");
         }
+
+        // Inject the wizard code into the HTML
+        website.latest_html = website.latest_html?.replace(
+            "</head>",
+            `${wizardCodeInject}</head>`,
+        );
+
+        // fix relative URLs
+        const $ = cheerio.load(website.latest_html);
+        const base = new URL(website.url);
+        $("*").each((i, el) => {
+            const href = $(el).attr("href");
+            if (href && !href.startsWith("http")) {
+                $(el).attr("href", new URL(href, base).href);
+            }
+            const src = $(el).attr("src");
+            if (src && !src.startsWith("http")) {
+                $(el).attr("src", new URL(src, base).href);
+            }
+        });
+
+        website.latest_html = $.html();
+
+        res.render("website-wizard", { website, feed });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(JSON.stringify(error));
     }
-);
+});
 
 export default pageRouter;

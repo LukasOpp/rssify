@@ -1,7 +1,7 @@
-import express, { Express } from 'express';
+import express, { Express } from "express";
 
-import apiRouter from './routes/api';
-import pageRouter from './routes/pages';
+import apiRouter from "./routes/api";
+import pageRouter from "./routes/pages";
 
 export const serverApp: Express = express();
 export const serverPort = process.env.PORT || 3000;
@@ -14,4 +14,4 @@ serverApp.set("view engine", "pug");
 serverApp.set("views", "./src/views");
 
 serverApp.use(`/api/${apiVersion}`, apiRouter);
-serverApp.use(`/`, pageRouter)
+serverApp.use(`/`, pageRouter);
