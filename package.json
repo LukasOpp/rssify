@@ -38,7 +38,7 @@
     "express": "4.19.2",
     "openai": "4.31.0",
     "pg-promise": "11.5.5",
-    "playwright": "1.42.1",
+    "playwright": "^1.42.1",
     "pug": "3.0.2"
   },
   "resolutions": {
