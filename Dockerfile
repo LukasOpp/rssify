@@ -9,15 +9,7 @@ FROM --platform=linux/amd64 apify/actor-node-playwright-chrome:20 AS builder
 COPY --chown=myuser package*.json ./
 
 # Install default dependencies, print versions of everything
-RUN npm --quiet set progress=false \
-	&& npm config --global set update-notifier false \
-	&& npm install --omit=dev --omit=optional --no-package-lock --prefer-online \
-	&& echo "Installed NPM packages:" \
-	&& (npm list --omit=dev --omit=optional || true) \
-	&& echo "Node.js version:" \
-	&& node --version \
-	&& echo "NPM version:" \
-	&& npm --version
+RUN npm install
 # Next, copy the source files using the user set
 # in the base image.
 COPY --chown=myuser . ./
