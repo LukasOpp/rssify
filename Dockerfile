@@ -9,7 +9,7 @@ FROM --platform=linux/amd64 apify/actor-node-playwright-chrome:20 AS builder
 COPY --chown=myuser package*.json ./
 
 # Install default dependencies, print versions of everything
-RUN npm install
+RUN npm install --force
 # Next, copy the source files using the user set
 # in the base image.
 COPY --chown=myuser . ./
