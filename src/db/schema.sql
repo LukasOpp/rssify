@@ -31,5 +31,6 @@ CREATE TABLE IF NOT EXISTS posts (
     content               text,
     date                  text,
     author                text,
-    date_crawled          timestamptz
+    date_crawled          timestamptz,
+    UNIQUE (website_id, title, url)
 );

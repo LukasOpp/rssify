@@ -320,4 +320,28 @@ apiRouter.post("/website/:id", async (req: Request, res: Response) => {
     }
 });
 
+apiRouter.post("/update/all", async (req: Request, res: Response) => {
+    try {
+        const websitesToUpdate: Website[] = await db.any("SELECT * FROM websites WHERE last_crawled IS NULL OR last_crawled < NOW() - INTERVAL '1 day'");
+
+        if (websitesToUpdate.length === 0) {
+            res.status(200).send({ message: "All websites up to date" });
+            return;
+        }
+
+        await crawler.run(
+            websitesToUpdate.map((website) => ({
+                url: website.url,
+                label: website.id,
+                userData: { label: website.id },
+            })),
+        );
+
+        res.status(200).send({ message: `${websitesToUpdate.length} Websites updated` });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Internal server error" });
+    }
+});
+
 export default apiRouter;

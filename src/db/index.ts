@@ -38,6 +38,11 @@ export const insertWebsitePosts = async (
     websiteId: string,
 ): Promise<void> => {
     return new Promise((resolve, reject) => {
+        if (posts.length === 0) {
+            resolve();
+            return;
+        }
+
         const cs = new pgp.helpers.ColumnSet(
             ["website_id", "title", "url", "content", "date", "author"],
             { table: "posts" },
@@ -50,7 +55,7 @@ export const insertWebsitePosts = async (
             };
         });
 
-        const query = pgp.helpers.insert(postsWithWebsiteId, cs);
+        const query = pgp.helpers.insert(postsWithWebsiteId, cs) + ' ON CONFLICT (website_id, title, url) DO NOTHING';
 
         // Execute the query
         db.none(query)
