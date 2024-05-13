@@ -59,7 +59,8 @@ WORKDIR /home/myuser
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/myuser/pw-browsers
 
 # Copy source code and xvfb script
-COPY --chown=myuser:myuser package.json main.js chrome_test.js start_xvfb_and_run_cmd.sh /home/myuser/
+# COPY --chown=myuser:myuser package.json main.js chrome_test.js start_xvfb_and_run_cmd.sh /home/myuser/
+COPY --chown=myuser:myuser package.json start_xvfb_and_run_cmd.sh ./home/myuser/
 
 # Sets path to Chrome executable, this is used by Apify.launchPuppeteer()
 ENV APIFY_CHROME_EXECUTABLE_PATH=/usr/bin/google-chrome

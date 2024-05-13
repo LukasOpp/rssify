@@ -1,0 +1,9 @@
+notes.md
+node_modules
+storage
+dist
+*.js
+.env
+.vscode
+yarn.lock
+.gitignore
