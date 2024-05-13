@@ -1,7 +1,7 @@
 # Specify the base Docker image. You can read more about
 # the available images at https://crawlee.dev/docs/guides/docker-images
 # You can also use any other image from Docker Hub.
-FROM jacoblincool/playwright:all as builder
+FROM jacoblincool/playwright:chromium as builder
 
 # Copy just package.json and package-lock.json
 # to speed up the build using Docker layer cache.
@@ -19,7 +19,7 @@ COPY . ./
 RUN npm run build
 
 # Create final image
-FROM jacoblincool/playwright:all
+FROM jacoblincool/playwright:chromium
 
 # Copy only built JS files from builder image
 COPY --from=builder dist ./dist
@@ -45,7 +45,7 @@ RUN npm --quiet set progress=false \
 # for most source file changes.
 COPY . ./
 
-RUN npx playwright install --with-deps
+RUN npx playwright install chromium --with-deps
 
 # Run the image.
 CMD ./start_xvfb_and_run_cmd.sh && npm run start --silent
