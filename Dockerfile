@@ -51,7 +51,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 #     && rm -rf /root/.npm \
 #     # This is needed to remove an annoying error message when running headful.
 #     && mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
-RUN mkdir -p /etc/default && echo 'repo_add_once=false' > /etc/default/google-chrome
+RUN mkdir -p /etc/default
+RUN echo 'repo_add_once=false' > /etc/default/google-chrome
 RUN apt-get update
 RUN apt-get install -y wget gnupg unzip ca-certificates xvfb --no-install-recommends
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
