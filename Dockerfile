@@ -9,48 +9,76 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install latest Chrome dev packages and fonts to support major charsets (Chinese, Japanese, Arabic, Hebrew, Thai and a few others)
 # Note: this also installs the necessary libs to make the bundled version of Chromium that Puppeteer installs, work.
-RUN \
-    # Disable chrome auto updates, based on https://support.google.com/chrome/a/answer/9052345
-    mkdir -p /etc/default && echo 'repo_add_once=false' > /etc/default/google-chrome \
-    && apt-get update \
-    && apt-get install -y wget gnupg unzip ca-certificates xvfb --no-install-recommends \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && sh -c 'echo "deb [arch=amd64] http://ftp.us.debian.org/debian bookworm main non-free" >> /etc/apt/sources.list.d/fonts.list' \
-    && apt-get update \
-    && apt-get purge --auto-remove -y wget unzip \
-    && apt-get install -y \
-    git \
-    google-chrome-stable \
-    # Found this in other images, not sure whether it's needed, it does not come from Playwright deps
-    procps \
-    # Extras
-    fonts-freefont-ttf \
-    fonts-kacst \
-    fonts-thai-tlwg \
-    fonts-wqy-zenhei \
-    --no-install-recommends \
-    \
+# RUN \
+#     # Disable chrome auto updates, based on https://support.google.com/chrome/a/answer/9052345
+#     mkdir -p /etc/default && echo 'repo_add_once=false' > /etc/default/google-chrome \
+#     && apt-get update \
+#     && apt-get install -y wget gnupg unzip ca-certificates xvfb --no-install-recommends \
+#     && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+#     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+#     && sh -c 'echo "deb [arch=amd64] http://ftp.us.debian.org/debian bookworm main non-free" >> /etc/apt/sources.list.d/fonts.list' \
+#     && apt-get update \
+#     && apt-get purge --auto-remove -y wget unzip \
+#     && apt-get install -y \
+#     git \
+#     google-chrome-stable \
+#     # Found this in other images, not sure whether it's needed, it does not come from Playwright deps
+#     procps \
+#     # Extras
+#     fonts-freefont-ttf \
+#     fonts-kacst \
+#     fonts-thai-tlwg \
+#     fonts-wqy-zenhei \
+#     --no-install-recommends \
+#     \
+#     # Add user so we don't need --no-sandbox.
+#     && groupadd -r myuser && useradd -r -g myuser -G audio,video myuser \
+#     && mkdir -p /home/myuser/Downloads \
+#     && chown -R myuser:myuser /home/myuser \
+#     \
+#     && mkdir -p /etc/opt/chrome/policies/managed \
+#     && echo '{ "CommandLineFlagSecurityWarningsEnabled": false }' > /etc/opt/chrome/policies/managed/managed_policies.json \
+#     && echo '{ "ComponentUpdatesEnabled": false }' > /etc/opt/chrome/policies/managed/component_update.json \
+#     \
+#     # Globally disable the update-notifier.
+#     && npm config --global set update-notifier false \
+#     # Install all required playwright dependencies for chrome/chromium
+#     && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm_config_ignore_scripts=1 npx playwright install-deps chrome \
+#     # Cleanup time
+#     && rm -rf /var/lib/apt/lists/* \
+#     && rm -rf /src/*.deb \
+#     && apt-get clean -y && apt-get autoremove -y \
+#     && rm -rf /root/.npm \
+#     # This is needed to remove an annoying error message when running headful.
+#     && mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+RUN mkdir -p /etc/default && echo 'repo_add_once=false' > /etc/default/google-chrome
+RUN apt-get update
+RUN apt-get install -y wget gnupg unzip ca-certificates xvfb --no-install-recommends
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+RUN sh -c 'echo "deb [arch=amd64] http://ftp.us.debian.org/debian bookworm main non-free" >> /etc/apt/sources.list.d/fonts.list'
+RUN apt-get update
+RUN apt-get purge --auto-remove -y wget unzip
+RUN apt-get install -y git google-chrome-stable procps fonts-freefont-ttf fonts-kacst fonts-thai-tlwg fonts-wqy-zenhei --no-install-recommends
     # Add user so we don't need --no-sandbox.
-    && groupadd -r myuser && useradd -r -g myuser -G audio,video myuser \
-    && mkdir -p /home/myuser/Downloads \
-    && chown -R myuser:myuser /home/myuser \
-    \
-    && mkdir -p /etc/opt/chrome/policies/managed \
-    && echo '{ "CommandLineFlagSecurityWarningsEnabled": false }' > /etc/opt/chrome/policies/managed/managed_policies.json \
-    && echo '{ "ComponentUpdatesEnabled": false }' > /etc/opt/chrome/policies/managed/component_update.json \
-    \
+RUN groupadd -r myuser && useradd -r -g myuser -G audio,video myuser
+RUN mkdir -p /home/myuser/Downloads
+RUN chown -R myuser:myuser /home/myuser
+    
+RUN mkdir -p /etc/opt/chrome/policies/managed
+RUN echo '{ "CommandLineFlagSecurityWarningsEnabled": false }' > /etc/opt/chrome/policies/managed/managed_policies.json
+RUN echo '{ "ComponentUpdatesEnabled": false }' > /etc/opt/chrome/policies/managed/component_update.json
     # Globally disable the update-notifier.
-    && npm config --global set update-notifier false \
-    # Install all required playwright dependencies for chrome/chromium
-    && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm_config_ignore_scripts=1 npx playwright install-deps chrome \
-    # Cleanup time
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /src/*.deb \
-    && apt-get clean -y && apt-get autoremove -y \
-    && rm -rf /root/.npm \
-    # This is needed to remove an annoying error message when running headful.
-    && mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+RUN npm config --global set update-notifier false
+# Install all required playwright dependencies for chrome/chromium
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm_config_ignore_scripts=1 npx playwright install-deps chrome
+# Cleanup time
+RUN rm -rf /var/lib/apt/lists/*
+RUN rm -rf /src/*.deb
+RUN apt-get clean -y && apt-get autoremove -y
+RUN rm -rf /root/.npm
+# This is needed to remove an annoying error message when running headful.
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
 # Run everything after as non-privileged user.
 USER myuser
