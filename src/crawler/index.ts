@@ -1,4 +1,4 @@
-import { Dataset, CheerioCrawler } from "crawlee";
+import { Dataset, PlaywrightCrawler } from "crawlee";
 
 import { db } from "../db";
 import { type Website, WebsiteSelectors } from "../types";
@@ -6,11 +6,12 @@ import { getPostDataForSelectors } from "../parser";
 import { insertWebsitePosts } from "../db";
 import { getLLMSelectors } from "../llm";
 
-export const crawler = new CheerioCrawler({
+export const crawler = new PlaywrightCrawler({
     maxRequestRetries: 3,
-    requestHandler: async ({ $, request }) => {
+    requestHandler: async ({ page, request, parseWithCheerio }) => {
+        const $ = await parseWithCheerio();
         // wait 5 secs
-        // await page.waitForTimeout(10000);
+        await page.waitForTimeout(10000);
         const body = $("body").html();
 
         // get all link elements with rel attribute containing "icon"
