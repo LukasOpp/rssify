@@ -6,8 +6,7 @@ Web app for managing your own feeds of website posts. Like RSS but without RSS.
 Running at http://s0k4w4w.5.75.242.145.sslip.io
 
 ## Current Caveats / Improvements
-- Current crawler only reads initial response without executing JS
-  - switching to Playwright crawler (supports async client-side JS hydration) is somewhat trivial with Crawlee
+- Initial crawl a bit slow
 - No history crawling
 (somewhat easy with Crawlee)
 - No user management 
