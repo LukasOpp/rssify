@@ -7,6 +7,7 @@ Running at http://s0k4w4w.5.75.242.145.sslip.io
 
 ## Current Caveats / Improvements
 - Initial crawl a bit slow
+- Current crawler deployment via Hetzner without proxy results in 403s on many popular sites
 - No history crawling
 (somewhat easy with Crawlee)
 - No user management 
